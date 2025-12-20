@@ -1,0 +1,234 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    /* Nueva Paleta: Soft & Deep */
+    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    --surface: rgba(255, 255, 255, 0.85); /* Efecto vidrio */
+    --surface-hover: rgba(255, 255, 255, 0.95);
+    
+    --primary: #2563EB;      /* Azul vibrante moderno */
+    --primary-dark: #1E40AF;
+    --text-main: #1F2937;
+    --text-muted: #6B7280;
+    --border-color: rgba(255, 255, 255, 0.6);
+    --border-glass: 1px solid rgba(255, 255, 255, 0.5);
+    
+    --radius-card: 24px;
+    --radius-sm: 12px;
+    --shadow-soft: 0 10px 40px -10px rgba(0,0,0,0.08);
+    --shadow-hover: 0 20px 40px -10px rgba(0,0,0,0.12);
+}
+
+body {
+    background: var(--bg-gradient);
+    background-attachment: fixed; /* El fondo se queda quieto al hacer scroll */
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* --- SIDEBAR DE CRISTAL --- */
+.sidebar {
+    width: 260px;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 40px 25px;
+    border-right: var(--border-glass);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    z-index: 10;
+}
+
+.brand {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 50px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.brand i { color: var(--primary); }
+
+.nav-links a {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 5px;
+    font-size: 0.95rem;
+}
+
+.nav-links a:hover {
+    background: rgba(255, 255, 255, 0.6);
+    color: var(--primary);
+    transform: translateX(5px);
+}
+
+.nav-links a.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 8px 20px -5px rgba(37, 99, 235, 0.4);
+}
+
+/* --- CONTENIDO PRINCIPAL --- */
+.content {
+    flex: 1;
+    padding: 40px 60px;
+    overflow-y: auto;
+    position: relative;
+}
+
+.header-section h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin: 0;
+    letter-spacing: -1px;
+    background: -webkit-linear-gradient(45deg, #111827, #4B5563);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* --- BENTO GRID MEJORADO --- */
+.bento-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, minmax(240px, auto));
+    gap: 25px;
+    max-width: 1400px;
+    margin-top: 30px;
+}
+
+.bento-card {
+    background: var(--surface);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: var(--border-glass);
+    border-radius: var(--radius-card);
+    padding: 30px;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.bento-card:hover {
+    transform: translateY(-5px) scale(1.01);
+    box-shadow: var(--shadow-hover);
+    background: var(--surface-hover);
+}
+
+.span-2 { grid-column: span 2; }
+
+/* --- WIDGETS --- */
+.widget-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 1.2px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hero-text {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.2;
+}
+
+.bg-icon {
+    position: absolute;
+    bottom: -20px;
+    right: -20px;
+    font-size: 10rem;
+    opacity: 0.04;
+    transform: rotate(-10deg);
+    pointer-events: none;
+    transition: transform 0.5s ease;
+}
+.bento-card:hover .bg-icon { transform: rotate(0deg) scale(1.1); }
+
+/* --- LISTAS CLEAN --- */
+.clean-list { list-style: none; padding: 0; margin: 0; }
+.clean-list li {
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.clean-list li:last-child { border-bottom: none; }
+
+/* --- BOTONES MODERNOS --- */
+.btn-primary {
+    background: var(--text-main);
+    color: white;
+    padding: 12px 24px;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.btn-primary:hover {
+    background: black;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Action Keys (Dashboard) */
+.action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    height: 100%;
+}
+.action-key {
+    background: rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.8);
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--text-main);
+    font-weight: 600;
+    transition: all 0.2s;
+}
+.action-key:hover {
+    background: white;
+    transform: scale(1.05);
+}
+.action-key.dark {
+    background: var(--text-main);
+    color: white;
+}
+.action-key.dark:hover { opacity: 0.9; }
+
+/* Scrollbar Bonito */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }

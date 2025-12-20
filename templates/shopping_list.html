@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Lista de Compra{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto; padding-bottom: 50px;">
+
+    <div class="header-section" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <div>
+            <h1>Lista de Compra</h1>
+            <p style="color: var(--text-muted);">Gestiona tus necesidades del supermercado.</p>
+        </div>
+        
+        {% if items %}
+        <a href="{{ url_for('clear_completed_items') }}" style="color: var(--text-muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; padding: 8px 15px; border-radius: 8px; transition: background 0.2s;">
+            <i class="fas fa-trash-alt"></i> Limpiar completados
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="bento-card" style="margin-bottom: 25px; padding: 15px; background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255,255,255,0.6); backdrop-filter: blur(10px);">
+        <form action="{{ url_for('add_shopping_item') }}" method="POST" style="display: flex; gap: 15px;">
+            <input type="text" name="nombre" class="modern-input" placeholder="¿Qué te falta? (ej: Leche, Huevos, Champú...)" required autocomplete="off" style="flex: 1; border: none; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.03); height: 50px;">
+            <button type="submit" class="btn-primary" style="width: auto; padding: 0 25px; border-radius: 12px; height: 50px;">
+                <i class="fas fa-plus"></i>
+            </button>
+        </form>
+    </div>
+
+    <div class="bento-card" style="padding: 0; overflow: hidden; background: rgba(255, 255, 255, 0.85); border: 1px solid rgba(255,255,255,0.6);">
+        {% if items %}
+            <ul class="shopping-list">
+                {% for item in items %}
+                <li class="shopping-row {% if item.completed %}completed{% endif %}">
+                    <a href="{{ url_for('toggle_shopping_item', item_id=item.id) }}" class="row-clickable">
+                        
+                        <div style="display: flex; align-items: center; gap: 18px;">
+                            <div class="custom-checkbox">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            
+                            <div style="flex: 1;">
+                                <div class="item-name">{{ item.nombre }}</div>
+                                <div class="item-meta">
+                                    {% if item.is_auto %}
+                                        <span class="tag-auto"><i class="fas fa-utensils"></i> Menú</span>
+                                        {% if item.cantidad > 1 %} &nbsp;•&nbsp; {{ item.cantidad|round(1) if item.cantidad % 1 else item.cantidad|int }} {{ item.unidad }}{% endif %}
+                                    {% else %}
+                                        <span class="tag-manual"><i class="fas fa-hand-pointer"></i> Manual</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div style="text-align: center; padding: 80px 20px;">
+                <div style="background: rgba(0,0,0,0.03); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;">
+                    <i class="fas fa-shopping-basket" style="font-size: 2rem; color: var(--text-muted); opacity: 0.5;"></i>
+                </div>
+                <h3 style="margin: 0; color: var(--text-main);">Tu lista está vacía</h3>
+                <p style="color: var(--text-muted); margin-top: 10px;">Todo listo. Añade recetas a tu menú semanal o agrega items manualmente.</p>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<style>
+    /* Estilos de la Lista */
+    .shopping-list { list-style: none; padding: 0; margin: 0; }
+    
+    .shopping-row {
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    .shopping-row:last-child { border-bottom: none; }
+    .shopping-row:hover { background: rgba(255,255,255,0.6); }
+    
+    .row-clickable {
+        display: block;
+        padding: 20px 25px;
+        text-decoration: none;
+        color: var(--text-main);
+    }
+
+    /* ESTADO COMPLETADO (Tachado) */
+    .shopping-row.completed {
+        background: rgba(0,0,0,0.02); /* Gris muy sutil */
+    }
+    .shopping-row.completed .item-name {
+        text-decoration: line-through;
+        color: var(--text-muted);
+        opacity: 0.7;
+    }
+    .shopping-row.completed .custom-checkbox {
+        background: var(--text-main); /* Se rellena de negro/azul oscuro */
+        border-color: var(--text-main);
+        color: white; /* Aparece el tick */
+        transform: scale(1.05);
+    }
+    /* Filtro gris para los tags cuando está completado */
+    .shopping-row.completed .tag-auto, 
+    .shopping-row.completed .tag-manual {
+        opacity: 0.5;
+        filter: grayscale(100%);
+    }
+
+    /* ESTILO CHECKBOX */
+    .custom-checkbox {
+        width: 24px;
+        height: 24px;
+        border: 2px solid #D1D5DB;
+        border-radius: 8px; /* Cuadrado redondeado moderno */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        color: transparent; /* Tick invisible por defecto */
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        background: white;
+    }
+
+    /* TIPOGRAFÍA */
+    .item-name { font-weight: 600; font-size: 1.05rem; margin-bottom: 5px; transition: color 0.2s; }
+    .item-meta { font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; }
+
+    /* TAGS DE ORIGEN */
+    .tag-auto { 
+        color: #7C3AED; 
+        background: #F5F3FF; 
+        padding: 3px 8px; 
+        border-radius: 6px; 
+        font-weight: 600;
+        display: inline-flex; align-items: center; gap: 5px;
+    }
+    .tag-manual { 
+        color: var(--text-muted); 
+        background: rgba(0,0,0,0.06); 
+        padding: 3px 8px; 
+        border-radius: 6px;
+        font-weight: 500;
+        display: inline-flex; align-items: center; gap: 5px;
+    }
+
+    /* Input Moderno ajustado para este form */
+    .modern-input:focus {
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+    }
+</style>
+{% endblock %}

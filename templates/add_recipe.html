@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if is_edit %}Editar Receta{% else %}Nueva Receta{% endif %}
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto; padding-bottom: 60px;">
+    
+    <div class="header-section" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px;">
+        <div>
+            <h1 style="font-size: 2rem; margin-bottom: 5px;">
+                {% if is_edit %}Editar Receta{% else %}Crear Receta{% endif %}
+            </h1>
+            <p style="color: var(--text-muted); font-size: 1rem;">
+                {% if is_edit %}Modificando los detalles del plato.{% else %}Añade un nuevo plato a tu colección.{% endif %}
+            </p>
+        </div>
+        <a href="{{ url_for('recetas_page') }}" class="btn-cancel">
+            <i class="fas fa-times"></i> Cancelar
+        </a>
+    </div>
+
+    <form method="POST" id="recipe-form">
+        {{ form.hidden_tag() }}
+
+        <div class="bento-card main-card">
+            
+            <div style="margin-bottom: 40px;">
+                <label class="label-premium">NOMBRE DEL PLATO</label>
+                {{ form.nombre(class="input-hero", placeholder="Ej: Risotto de Setas", autocomplete="off") }}
+            </div>
+
+            <div class="meta-grid">
+                
+                <div>
+                    <label class="label-premium"><i class="fas fa-fire-alt" style="color: #F59E0B;"></i> &nbsp;Calorías</label>
+                    <div class="input-suffix-group">
+                        {{ form.kcal(class="modern-input", placeholder="0", style="padding-right: 50px;") }}
+                        <span class="suffix-text">Kcal</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="label-premium"><i class="fas fa-tag" style="color: #6366F1;"></i> &nbsp;Categoría</label>
+                    <div class="select-wrapper">
+                        {{ form.tipo(class="modern-select") }}
+                        <i class="fas fa-chevron-down select-arrow"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ingredients-section">
+                <div class="ingredients-header">
+                    <div class="label-premium" style="margin: 0; font-size: 0.85rem;"><i class="fas fa-shopping-basket"></i> &nbsp;INGREDIENTES</div>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">Lo necesario para la compra</span>
+                </div>
+
+                <div class="grid-headers">
+                    <span>PRODUCTO</span>
+                    <span>CANTIDAD</span>
+                    <span>UNIDAD</span>
+                    <span></span>
+                </div>
+
+                <div id="ingredients-container">
+                    {% for subfield in form.ingredientes %}
+                        <div class="ingredient-row" id="ingrediente-{{ loop.index0 }}">
+                            {{ subfield.nombre(class="modern-input", placeholder="Nombre") }}
+                            {{ subfield.cantidad(class="modern-input", placeholder="0") }}
+                            {{ subfield.unidad(class="modern-input", placeholder="ud") }}
+                            
+                            <button type="button" onclick="removeRow(this)" class="btn-icon-delete" tabindex="-1">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button type="button" onclick="addIngredientField()" class="btn-soft">
+                        <i class="fas fa-plus"></i> Añadir Ingrediente
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-footer">
+                {{ form.submit(class="btn-primary-save") }}
+            </div>
+
+        </div>
+    </form>
+</div>
+
+<style>
+    /* --- ESTILOS PREMIUM --- */
+
+    /* Tarjeta Principal */
+    .main-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255, 0.8);
+        box-shadow: 0 20px 40px -10px rgba(0,0,0,0.05);
+        padding: 40px;
+        border-radius: 24px;
+    }
+
+    /* Etiquetas sutiles */
+    .label-premium {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+        display: block;
+        opacity: 0.8;
+    }
+
+    /* INPUTS MODERNOS (Filled Style - Soft) */
+    .modern-input, .modern-select {
+        width: 100%;
+        background: #F3F4F6; /* Fondo gris suave en lugar de borde */
+        border: 1px solid transparent;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-family: 'Inter', sans-serif; /* Fuente Premium */
+        font-size: 0.95rem;
+        color: var(--text-main);
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        box-sizing: border-box;
+    }
+
+    /* Estado Focus: Se vuelve blanco y brilla un poco */
+    .modern-input:focus, .modern-select:focus {
+        background: #FFFFFF;
+        border-color: var(--primary); /* Azul */
+        outline: none;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    }
+    
+    .modern-input::placeholder { color: #9CA3AF; }
+
+    /* Input Hero (Título) */
+    .input-hero {
+        width: 100%;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid #E5E7EB;
+        font-family: 'Inter', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: var(--text-main);
+        padding: 5px 0 15px 0;
+        transition: border-color 0.3s;
+        border-radius: 0; /* Override radius */
+        letter-spacing: -1px;
+    }
+    .input-hero:focus {
+        outline: none;
+        border-color: var(--text-main);
+        background: transparent;
+        box-shadow: none;
+    }
+
+    /* Corrección KCAL (Suffix Group) */
+    .input-suffix-group {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .suffix-text {
+        position: absolute;
+        right: 16px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        pointer-events: none; /* Click pasa a través */
+        background: transparent;
+    }
+
+    /* Grid Layouts */
+    .meta-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-bottom: 40px;
+    }
+
+    /* Select Personalizado */
+    .select-wrapper { position: relative; }
+    .modern-select { appearance: none; cursor: pointer; }
+    .select-arrow {
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        pointer-events: none;
+        font-size: 0.8rem;
+    }
+
+    /* Sección Ingredientes */
+    .ingredients-section {
+        background: #FAFAFA; /* Bloque sutilmente diferente */
+        border-radius: 16px;
+        padding: 25px;
+        border: 1px solid rgba(0,0,0,0.03);
+    }
+    .ingredients-header {
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        margin-bottom: 20px;
+    }
+
+    .grid-headers {
+        display: grid;
+        grid-template-columns: 2.5fr 1fr 1fr 40px;
+        gap: 15px;
+        padding: 0 5px 10px 5px;
+    }
+    .grid-headers span {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #9CA3AF;
+        letter-spacing: 0.5px;
+    }
+
+    .ingredient-row {
+        display: grid;
+        grid-template-columns: 2.5fr 1fr 1fr 40px;
+        gap: 15px;
+        margin-bottom: 10px;
+        align-items: center;
+        animation: fadeIn 0.3s ease;
+    }
+
+    /* Botones */
+    .btn-icon-delete {
+        border: none;
+        background: white;
+        color: #EF4444;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    }
+    .btn-icon-delete:hover {
+        background: #FEF2F2;
+        border-color: #FECACA;
+        transform: scale(1.05);
+    }
+
+    .btn-soft {
+        width: 100%;
+        padding: 14px;
+        background: white;
+        border: 2px dashed #E5E7EB;
+        color: var(--text-muted);
+        font-weight: 600;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+    }
+    .btn-soft:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: #EFF6FF;
+    }
+
+    .btn-cancel {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: color 0.2s;
+        padding: 10px;
+    }
+    .btn-cancel:hover { color: var(--text-main); }
+
+    .btn-primary-save {
+        background: var(--text-main);
+        color: white;
+        border: none;
+        padding: 16px 40px;
+        border-radius: 14px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 10px 20px -5px rgba(0,0,0,0.2);
+    }
+    .btn-primary-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 30px -5px rgba(0,0,0,0.3);
+    }
+    
+    .form-footer {
+        margin-top: 40px;
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 20px;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<script>
+    let ingredientCount = {{ form.ingredientes|length }};
+    const container = document.getElementById('ingredients-container');
+
+    const template = `
+        <div class="ingredient-row" id="ingrediente-INDEX">
+            <input type="text" name="ingredientes-INDEX-nombre" class="modern-input" placeholder="Nombre" required>
+            <input type="number" name="ingredientes-INDEX-cantidad" class="modern-input" step="0.1" min="0" placeholder="0" required>
+            <input type="text" name="ingredientes-INDEX-unidad" class="modern-input" placeholder="ud" required>
+            <button type="button" onclick="removeRow(this)" class="btn-icon-delete" tabindex="-1">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </div>
+    `;
+
+    function addIngredientField() {
+        const newHtml = template.replaceAll('INDEX', ingredientCount);
+        container.insertAdjacentHTML('beforeend', newHtml);
+        
+        // Auto-focus en el nuevo nombre
+        const newRow = container.lastElementChild;
+        const input = newRow.querySelector('input');
+        if(input) input.focus();
+
+        ingredientCount++;
+    }
+
+    function removeRow(btn) {
+        const row = btn.closest('.ingredient-row');
+        row.style.opacity = '0';
+        row.style.transform = 'scale(0.95)';
+        setTimeout(() => row.remove(), 200);
+    }
+</script>
+{% endblock %}

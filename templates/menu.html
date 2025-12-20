@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Planificador Semanal{% endblock %}
+
+{% block content %}
+<div class="header-section" style="margin-bottom: 30px;">
+    <h1>Planificador Semanal</h1>
+    <p style="color: var(--text-muted);">Organiza tus comidas. El sistema calculará la compra automáticamente.</p>
+</div>
+
+<form method="POST" id="menuForm">
+    <div class="bento-grid">
+        
+        <div class="bento-card" style="grid-column: span 3; padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.8);">
+            
+            <div style="padding: 20px 30px; background: rgba(255,255,255,0.5); border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;">
+                <div class="widget-title" style="margin: 0;"><i class="fas fa-calendar-alt"></i> &nbsp;Tu Semana</div>
+                <button type="submit" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem;">
+                    <i class="fas fa-save"></i> Guardar Cambios
+                </button>
+            </div>
+
+            <div style="padding: 30px; overflow-x: auto;">
+                <div style="min-width: 950px;">
+                    <div class="menu-header-row">
+                        <div style="width: 80px;"></div>
+                        <div class="meal-header">☕ Desayuno</div>
+                        <div class="meal-header">🍲 Comida</div>
+                        <div class="meal-header">🥪 Merienda</div>
+                        <div class="meal-header">🌙 Cena</div>
+                    </div>
+
+                    {% for dia_menu in menu %}
+                    <div class="menu-day-row">
+                        <div class="day-badge">{{ dia_menu.dia[:3]|upper }}</div>
+                        
+                        {% for tipo in ['Desayuno', 'Comida', 'Merienda', 'Cena'] %}
+                        <div class="meal-cell" id="container_{{ dia_menu.dia }}_{{ tipo }}">
+                            
+                            {% for receta_sel in dia_menu.get_recetas(tipo) %}
+                            <div class="select-wrapper">
+                                <select name="{{ dia_menu.dia }}_{{ tipo }}" class="modern-select filled">
+                                    <option value="">(Borrar plato)</option>
+                                    {% for r in recetas %}
+                                        <option value="{{ r.id }}" {% if r.id == receta_sel.id %}selected{% endif %}>{{ r.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% endfor %}
+
+                            <div class="select-wrapper">
+                                <select name="{{ dia_menu.dia }}_{{ tipo }}" class="modern-select placeholder">
+                                    <option value="" selected>- Añadir plato -</option>
+                                    {% for r in recetas %}
+                                        <option value="{{ r.id }}">{{ r.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="bento-card" style="height: fit-content; position: sticky; top: 20px;">
+            <div class="widget-title"><i class="fas fa-shopping-basket"></i> &nbsp;Preview Compra</div>
+            
+            {% if lista_compra %}
+                <div style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
+                    <ul class="clean-list">
+                        {% for item in lista_compra %}
+                        <li class="shopping-item">
+                            <span style="font-weight: 500; font-size: 0.9rem;">{{ item.nombre }}</span>
+                            <span class="shopping-badge">{{ item.cantidad|round(1) if item.cantidad % 1 else item.cantidad|int }} {{ item.unidad }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div style="margin-top: 20px; text-align: center; font-size: 0.8rem; color: var(--text-muted); border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 15px;">
+                    Se actualizará al pulsar "Guardar"
+                </div>
+            {% else %}
+                <div style="text-align:center; color: var(--text-muted); padding: 40px 20px;">
+                    <i class="fas fa-carrot" style="font-size: 2rem; opacity: 0.2; margin-bottom: 10px;"></i>
+                    <p style="font-size: 0.9rem;">Planifica tu semana para generar la lista automáticamente.</p>
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Delegación de eventos para detectar cambios en cualquier select
+        document.body.addEventListener('change', function(e) {
+            if (e.target.classList.contains('modern-select')) {
+                const select = e.target;
+                const parent = select.closest('.meal-cell');
+                
+                // Lógica: Si cambias el ÚLTIMO select y le pones valor, creamos uno nuevo vacío debajo
+                if (select.value !== "" && select === parent.lastElementChild.querySelector('select')) {
+                    // Cambiamos estilo del actual para indicar que está "lleno"
+                    select.classList.remove('placeholder');
+                    select.classList.add('filled');
+                    
+                    // Añadimos el nuevo hueco
+                    addSelect(parent);
+                }
+            }
+        });
+    });
+
+    function addSelect(container) {
+        // Clonar el último wrapper
+        const lastWrapper = container.lastElementChild;
+        const newWrapper = lastWrapper.cloneNode(true);
+        const newSelect = newWrapper.querySelector('select');
+        
+        // Resetear el clon a estado "vacío"
+        newSelect.value = "";
+        newSelect.classList.remove('filled');
+        newSelect.classList.add('placeholder');
+        
+        // Añadir animación suave
+        newWrapper.style.opacity = "0";
+        newWrapper.style.transform = "translateY(-10px)";
+        newWrapper.style.transition = "all 0.3s ease";
+        
+        container.appendChild(newWrapper);
+        
+        // Ejecutar animación
+        requestAnimationFrame(() => {
+            newWrapper.style.opacity = "1";
+            newWrapper.style.transform = "translateY(0)";
+        });
+    }
+</script>
+
+<style>
+    /* Estilos Específicos del Menú */
+    .menu-header-row {
+        display: grid;
+        grid-template-columns: 80px 1fr 1fr 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 15px;
+        padding-left: 15px;
+    }
+    
+    .meal-header {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--text-muted);
+        letter-spacing: 1px;
+        text-align: center;
+    }
+
+    .menu-day-row {
+        display: grid;
+        grid-template-columns: 80px 1fr 1fr 1fr 1fr;
+        gap: 15px;
+        padding: 20px 15px;
+        border-bottom: 1px dashed rgba(0,0,0,0.1);
+        align-items: start;
+        transition: background 0.2s;
+    }
+    .menu-day-row:hover {
+        background: rgba(255,255,255,0.3);
+    }
+    .menu-day-row:last-child { border-bottom: none; }
+
+    .day-badge {
+        font-weight: 800;
+        color: var(--text-main);
+        font-size: 0.85rem;
+        padding-top: 8px;
+        opacity: 0.7;
+    }
+
+    .meal-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .select-wrapper {
+        position: relative;
+    }
+
+    .modern-select {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(0,0,0,0.1);
+        background-color: rgba(255,255,255,0.5);
+        color: var(--text-main);
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        appearance: none; /* Quita flecha nativa */
+        /* Flecha custom pequeña */
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 1em;
+        padding-right: 25px;
+    }
+
+    /* Diferenciar selects llenos de vacíos visualmente */
+    .modern-select.placeholder {
+        color: var(--text-muted);
+        border-style: dashed;
+        opacity: 0.8;
+    }
+    .modern-select.filled {
+        background-color: white;
+        border-color: rgba(0,0,0,0.15);
+        font-weight: 500;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .modern-select:focus {
+        border-color: var(--primary);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    .shopping-badge {
+        background: var(--text-main);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+</style>
+{% endblock %}

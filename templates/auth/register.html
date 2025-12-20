@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Cuenta{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 80vh;">
+    
+    <div class="bento-card" style="width: 100%; max-width: 500px; padding: 40px;">
+        
+        <div style="text-align: center; margin-bottom: 30px;">
+            <i class="fas fa-user-plus" style="font-size: 2.5rem; color: var(--text-main);"></i>
+            <h1 style="margin-top: 15px; margin-bottom: 5px;">Únete a Home OS</h1>
+            <p style="color: var(--text-muted);">Configura tu espacio personal</p>
+        </div>
+
+        <form method="POST">
+            {{ form.hidden_tag() }}
+            
+            <div style="margin-bottom: 20px;">
+                <label class="card-label">Nombre de Usuario</label>
+                {{ form.username(class="modern-input", placeholder="Ej: FamiliaGarcia", autocomplete="off") }}
+                {% if form.username.errors %}
+                    <div style="color: #EF4444; font-size: 0.8rem; margin-top: 5px;">{{ form.username.errors[0] }}</div>
+                {% endif %}
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label class="card-label">Correo Electrónico</label>
+                {{ form.email(class="modern-input", placeholder="ejemplo@email.com", autocomplete="email") }}
+                {% if form.email.errors %}
+                    <div style="color: #EF4444; font-size: 0.8rem; margin-top: 5px;">{{ form.email.errors[0] }}</div>
+                {% endif %}
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                <div>
+                    <label class="card-label">Contraseña</label>
+                    {{ form.password(class="modern-input", placeholder="••••••") }}
+                    {% if form.password.errors %}
+                        <div style="color: #EF4444; font-size: 0.8rem; margin-top: 5px;">{{ form.password.errors[0] }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="card-label">Repetir</label>
+                    {{ form.confirm_password(class="modern-input", placeholder="••••••") }}
+                    {% if form.confirm_password.errors %}
+                        <div style="color: #EF4444; font-size: 0.8rem; margin-top: 5px;">{{ form.confirm_password.errors[0] }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {{ form.submit(class="btn-black", style="width: 100%; cursor: pointer; font-size: 1rem;") }}
+        </form>
+
+        <div style="margin-top: 30px; text-align: center; font-size: 0.9rem; border-top: 1px solid #F3F4F6; padding-top: 20px;">
+            ¿Ya tienes cuenta? <a href="{{ url_for('login') }}" style="color: var(--text-main); font-weight: 600; text-decoration: none;">Inicia Sesión</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

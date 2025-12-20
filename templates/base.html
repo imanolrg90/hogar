@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Home OS{% endblock %}</title>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    {% if current_user.is_authenticated %}
+    <div class="sidebar">
+        <div>
+            <div class="brand">
+                <i class="fas fa-cube"></i> Home OS
+            </div>
+
+            <nav class="nav-links">
+                <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <i class="fas fa-chart-pie" style="width: 20px;"></i> 
+                    Dashboard
+                </a>
+
+                <a href="{{ url_for('menu_semanal_page') }}" class="{% if 'menu' in request.path %}active{% endif %}">
+                    <i class="fas fa-calendar-week" style="width: 20px;"></i> 
+                    Menú Semanal
+                </a>
+
+                <a href="{{ url_for('recetas_page') }}" class="{% if 'recetas' in request.path %}active{% endif %}">
+                    <i class="fas fa-book" style="width: 20px;"></i> 
+                    Recetas
+                </a>
+                <a href="{{ url_for('shopping_list') }}" class="{% if 'shopping_list' in request.path %}active{% endif %}">
+    <i class="fas fa-shopping-cart" style="width: 20px;"></i> 
+    Lista Compra
+</a>
+                
+
+                <a href="#" class="{% if 'limpieza' in request.path %}active{% endif %}" style="opacity: 0.5; cursor: not-allowed;">
+                    <i class="fas fa-broom" style="width: 20px;"></i> 
+                    Limpieza (Pronto)
+                </a>
+            </nav>
+        </div>
+
+        <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #F3F4F6;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                <div style="width: 35px; height: 35px; background: #E5E7EB; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--text-main);">
+                    {{ current_user.username[0]|upper }}
+                </div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-main);">{{ current_user.username }}</div>
+            </div>
+            
+            <a href="{{ url_for('logout') }}" style="color: #EF4444; text-decoration: none; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; font-weight: 500; transition: opacity 0.2s;">
+                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="content" style="{% if not current_user.is_authenticated %}margin: 0 auto; max-width: 100%; display: flex; flex-direction: column; justify-content: center;{% endif %}">
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div style="margin-bottom: 30px; max-width: 1000px; margin-left: auto; margin-right: auto; width: 100%;">
+                {% for category, message in messages %}
+                  <div style="padding: 15px; border-radius: 12px; margin-bottom: 10px; font-weight: 500;
+                              background: {% if category=='success' %}#ECFDF5{% elif category=='danger' %}#FEF2F2{% elif category=='warning' %}#FFFBEB{% else %}#EFF6FF{% endif %}; 
+                              color: {% if category=='success' %}#065F46{% elif category=='danger' %}#991B1B{% elif category=='warning' %}#92400E{% else %}#1E40AF{% endif %}; 
+                              border: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; gap: 10px;">
+                      <i class="fas {% if category=='success' %}fa-check-circle{% elif category=='danger' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i> 
+                      {{ message }}
+                  </div>
+                {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </div>
+
+</body>
+</html>

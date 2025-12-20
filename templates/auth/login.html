@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Iniciar Sesión{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 70vh;">
+    <div class="bento-card" style="width: 100%; max-width: 400px; padding: 40px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <i class="fas fa-cube" style="font-size: 3rem; color: var(--text-main);"></i>
+            <h1 style="margin-top: 20px;">Bienvenido</h1>
+            <p style="color: var(--text-muted);">Accede a tu Home OS</p>
+        </div>
+
+        <form method="POST">
+            {{ form.hidden_tag() }}
+            
+            <div style="margin-bottom: 20px;">
+                <label class="card-label">Usuario</label>
+                {{ form.username(class="modern-input", placeholder="Tu nombre") }}
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label class="card-label">Contraseña</label>
+                {{ form.password(class="modern-input", placeholder="••••••") }}
+            </div>
+
+            <div style="margin-bottom: 30px; display: flex; align-items: center; gap: 10px;">
+                {{ form.remember_me() }} <label style="font-size: 0.9rem;">Recordar sesión</label>
+            </div>
+
+            {{ form.submit(class="btn-black", style="width: 100%; cursor: pointer;") }}
+        </form>
+
+        <div style="margin-top: 30px; text-align: center; font-size: 0.9rem;">
+            ¿No tienes cuenta? <a href="{{ url_for('register') }}" style="color: var(--text-main); font-weight: 600;">Regístrate aquí</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

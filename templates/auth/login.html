@@ -3,36 +3,157 @@
 {% block title %}Iniciar Sesión{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: center; align-items: center; min-height: 70vh;">
-    <div class="bento-card" style="width: 100%; max-width: 400px; padding: 40px;">
-        <div style="text-align: center; margin-bottom: 30px;">
-            <i class="fas fa-cube" style="font-size: 3rem; color: var(--text-main);"></i>
-            <h1 style="margin-top: 20px;">Bienvenido</h1>
-            <p style="color: var(--text-muted);">Accede a tu Home OS</p>
+<style>
+    /* Fondo animado premium */
+    body {
+        background: #f2f2f7; /* Fallback */
+        background-image: 
+            radial-gradient(at 0% 0%, rgba(50, 100, 255, 0.1) 0px, transparent 50%),
+            radial-gradient(at 100% 0%, rgba(200, 50, 100, 0.05) 0px, transparent 50%),
+            radial-gradient(at 100% 100%, rgba(50, 200, 200, 0.1) 0px, transparent 50%);
+        background-attachment: fixed;
+    }
+
+    /* Tarjeta estilo cristal */
+    .login-glass-card {
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow: 
+            0 20px 40px -10px rgba(0, 0, 0, 0.08),
+            0 0 0 1px rgba(0, 0, 0, 0.02);
+        border-radius: 24px;
+        width: 100%;
+        max-width: 380px;
+        padding: 48px 40px;
+        animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Inputs estilo iOS */
+    .modern-input {
+        width: 100%;
+        background: #F5F5F7; /* Gris muy suave estilo Apple */
+        border: 1px solid transparent;
+        border-radius: 12px;
+        padding: 14px 16px;
+        font-size: 1rem;
+        color: #1d1d1f;
+        transition: all 0.2s ease;
+        outline: none;
+    }
+
+    .modern-input:focus {
+        background: #FFFFFF;
+        border-color: #0071e3; /* Azul Apple */
+        box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
+    }
+
+    .modern-input::placeholder {
+        color: #86868b;
+    }
+
+    /* Etiquetas */
+    .input-label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1d1d1f;
+        margin-bottom: 8px;
+        margin-left: 4px;
+    }
+
+    /* Botón principal */
+    .btn-premium {
+        background: #000000;
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        padding: 14px;
+        font-size: 1rem;
+        font-weight: 500;
+        width: 100%;
+        cursor: pointer;
+        transition: transform 0.1s ease, background-color 0.2s;
+        margin-top: 10px;
+    }
+
+    .btn-premium:hover {
+        background: #333;
+        transform: scale(1.01);
+    }
+
+    .btn-premium:active {
+        transform: scale(0.98);
+    }
+
+    /* Checkbox personalizado sutil */
+    .checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    /* Icono animado */
+    .logo-container {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #1d1d1f 0%, #434344 100%);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 24px auto;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+    }
+
+    @keyframes slideUpFade {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<div style="display: flex; justify-content: center; align-items: center; min-height: 85vh;">
+    
+    <div class="login-glass-card">
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div class="logo-container">
+                <i class="fas fa-cube" style="font-size: 1.8rem; color: #fff;"></i>
+            </div>
+            <h1 style="font-size: 1.75rem; font-weight: 700; color: #1d1d1f; margin: 0;">Bienvenido</h1>
+            <p style="color: #86868b; margin-top: 8px; font-size: 0.95rem;">Tu hogar, bajo control.</p>
         </div>
 
         <form method="POST">
             {{ form.hidden_tag() }}
             
             <div style="margin-bottom: 20px;">
-                <label class="card-label">Usuario</label>
-                {{ form.username(class="modern-input", placeholder="Tu nombre") }}
+                <label class="input-label">Usuario</label>
+                {{ form.username(class="modern-input", placeholder="Ej. admin") }}
             </div>
 
-            <div style="margin-bottom: 20px;">
-                <label class="card-label">Contraseña</label>
-                {{ form.password(class="modern-input", placeholder="••••••") }}
+            <div style="margin-bottom: 24px;">
+                <label class="input-label">Contraseña</label>
+                {{ form.password(class="modern-input", placeholder="••••••••") }}
             </div>
 
-            <div style="margin-bottom: 30px; display: flex; align-items: center; gap: 10px;">
-                {{ form.remember_me() }} <label style="font-size: 0.9rem;">Recordar sesión</label>
+            <div style="margin-bottom: 32px;">
+                <label class="checkbox-wrapper">
+                    {{ form.remember_me(style="accent-color: #000; width: 16px; height: 16px;") }} 
+                    <span style="font-size: 0.9rem; color: #424245;">Mantener sesión iniciada</span>
+                </label>
             </div>
 
-            {{ form.submit(class="btn-black", style="width: 100%; cursor: pointer;") }}
+            {{ form.submit(class="btn-premium", value="Entrar") }}
         </form>
 
-        <div style="margin-top: 30px; text-align: center; font-size: 0.9rem;">
-            ¿No tienes cuenta? <a href="{{ url_for('register') }}" style="color: var(--text-main); font-weight: 600;">Regístrate aquí</a>
+        <div style="margin-top: 32px; text-align: center; font-size: 0.9rem; color: #86868b;">
+            ¿Primera vez aquí? 
+            <a href="{{ url_for('register') }}" style="color: #0071e3; text-decoration: none; font-weight: 500; transition: color 0.2s;">
+                Crear cuenta
+            </a>
         </div>
     </div>
 </div>

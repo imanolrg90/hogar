@@ -33,7 +33,7 @@ class Ingredient(db.Model):
     price_kg = db.Column(db.Float, nullable=False)
     
     # Relación inversa
-    recipes_assoc = db.relationship("RecipeIngredient", back_populates="ingredient")
+    recipes_assoc = db.relationship("RecipeIngredient", back_populates="ingredient", cascade="all, delete-orphan")
 
 class RecipeIngredient(db.Model):
     __tablename__ = 'recipe_ingredients'

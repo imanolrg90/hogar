@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 db = SQLAlchemy()
 
@@ -152,3 +153,66 @@ class ShoppingItem(db.Model):
     completed = db.Column(db.Boolean, default=False)
     is_auto = db.Column(db.Boolean, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+class Exercise(db.Model):
+    __tablename__ = 'exercise'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    muscle_group = db.Column(db.String(50)) # Pecho, Espalda, Pierna...
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Relación para ver el historial
+    sets = db.relationship('WorkoutSet', backref='exercise', lazy=True)
+
+class WorkoutSession(db.Model):
+    __tablename__ = 'workout_session'
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.DateTime, default=datetime.utcnow) # Ojo: asegúrate de importar datetime arriba si no está
+    note = db.Column(db.String(200))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    sets = db.relationship('WorkoutSet', backref='session', cascade="all, delete-orphan", lazy=True)
+
+    @property
+    def summary(self):
+        """Devuelve un resumen de ejercicios tocados en esta sesión"""
+        exercises = set([s.exercise.name for s in self.sets])
+        return ", ".join(exercises)
+
+class WorkoutSet(db.Model):
+    __tablename__ = 'workout_set'
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('workout_session.id'), nullable=False)
+    exercise_id = db.Column(db.Integer, db.ForeignKey('exercise.id'), nullable=False)
+    
+    weight = db.Column(db.Float, nullable=False)
+    reps = db.Column(db.Integer, nullable=False)
+    order = db.Column(db.Integer, default=1) # Para saber qué serie fue primero
+
+    # --- RUTINAS DE GIMNASIO ---
+class Routine(db.Model):
+    __tablename__ = 'routine'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False) # Ej: "Empuje A", "Pierna Hipertrofia"
+    description = db.Column(db.String(200))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Relación con los ejercicios de la rutina
+    exercises = db.relationship('RoutineExercise', backref='routine', cascade="all, delete-orphan", lazy=True)
+
+class RoutineExercise(db.Model):
+    __tablename__ = 'routine_exercise'
+    id = db.Column(db.Integer, primary_key=True)
+    routine_id = db.Column(db.Integer, db.ForeignKey('routine.id'), nullable=False)
+    exercise_id = db.Column(db.Integer, db.ForeignKey('exercise.id'), nullable=False)
+    order = db.Column(db.Integer, default=1) # Para que salgan en orden
+    
+    # Podemos acceder al objeto ejercicio completo desde aquí
+    exercise = db.relationship('Exercise')
+
+# --- MODIFICACIÓN: Añade esto a WorkoutSession si quieres saber qué rutina usaste ---
+# (Si no quieres borrar la tabla antigua, puedes saltarte este campo o usar migraciones, 
+# pero para desarrollo local rápido, añade el campo y borra la db antigua si da error)
+# class WorkoutSession(...):
+#     ... campos existentes ...
+#     routine_used_id = db.Column(db.Integer, db.ForeignKey('routine.id'), nullable=True)

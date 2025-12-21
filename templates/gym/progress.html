@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Progreso {{ exercise.name }}{% endblock %}
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="header-section">
+    <h1>{{ exercise.name }}</h1>
+    <p>Evolución de Fuerza Máxima</p>
+</div>
+
+<div class="bento-grid">
+    <div class="bento-card" style="grid-column: 1 / -1; height: 300px; position: relative;">
+        <canvas id="progressChart"></canvas>
+    </div>
+    </div>
+
+    <div class="bento-card span-3">
+        <div class="widget-title">Historial Detallado</div>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid #eee; text-align: left;">
+                    <th style="padding: 10px;">Fecha</th>
+                    <th>Peso</th>
+                    <th>Reps</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for set, date in history %}
+                <tr style="border-bottom: 1px solid #f9f9f9;">
+                    <td style="padding: 10px;">{{ date.strftime('%d/%m/%Y') }}</td>
+                    <td style="font-weight: bold;">{{ set.weight }} kg</td>
+                    <td>{{ set.reps }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const ctx = document.getElementById('progressChart').getContext('2d');
+    
+    // Datos pasados desde Flask
+    const labels = {{ labels|tojson }};
+    const data = {{ data|tojson }};
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Peso Máximo (kg)',
+                data: data,
+                borderColor: '#4F46E5', // Color Primary
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: false }
+            }
+        }
+    });
+</script>
+{% endblock %}

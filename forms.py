@@ -36,3 +36,18 @@ class RegistrationForm(FlaskForm):
     password = PasswordField('Contraseña', validators=[DataRequired(), Length(min=6)])
     confirm_password = PasswordField('Repetir Contraseña', validators=[DataRequired(), EqualTo('password')])
     submit = SubmitField('Registrarse')
+
+class ExerciseForm(FlaskForm):
+    name = StringField('Nombre del Ejercicio', validators=[DataRequired()])
+    muscle_group = SelectField('Grupo Muscular', choices=[
+        ('Pecho', 'Pecho'), ('Espalda', 'Espalda'), 
+        ('Pierna', 'Pierna'), ('Hombro', 'Hombro'), 
+        ('Bíceps', 'Bíceps'), ('Tríceps', 'Tríceps'), 
+        ('Abdominales', 'Abdominales'), ('Cardio', 'Cardio'), ('Otro', 'Otro')
+    ])
+    submit = SubmitField('Guardar Ejercicio')
+
+class RoutineForm(FlaskForm):
+    name = StringField('Nombre de la Rutina', validators=[DataRequired()])
+    description = StringField('Descripción')
+    submit = SubmitField('Guardar Rutina')

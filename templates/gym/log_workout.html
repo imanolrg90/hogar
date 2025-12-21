@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Entrenar{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <h1>Registrar Entrenamiento</h1>
+    <p style="color: var(--text-muted);">A darle duro. Registra cada serie.</p>
+</div>
+
+<form method="POST" id="workoutForm">
+    <input type="hidden" name="workout_data" id="workoutData">
+
+    <div class="bento-grid">
+        
+        <div class="bento-card" style="grid-column: 1 / -1; padding: 30px; min-height: 600px;">
+            
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #eee;">
+                
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; display: block;">
+                        <i class="fas fa-list"></i> Cargar Rutina
+                    </label>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="routineLoader" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; background: #F9FAFB; font-size: 1rem;">
+                            <option value="">-- Seleccionar Rutina --</option>
+                            {% for r in routines %}
+                                <option value="{{ r.id }}" {% if request.args.get('routine_id')|int == r.id %}selected{% endif %}>{{ r.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" onclick="loadRoutine()" class="action-key dark" style="width: auto; padding: 0 25px;">
+                            Cargar
+                        </button>
+                    </div>
+                </div>
+
+                <div style="flex: 2; min-width: 300px;">
+                    <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; display: block;">
+                        <i class="fas fa-sticky-note"></i> Nota del entreno
+                    </label>
+                    <input type="text" name="note" placeholder="Ej: Hoy me siento fuerte en banca..." class="form-control" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 1rem;">
+                </div>
+            </div>
+
+            <div style="background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 30px;">
+                <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 10px; display: block;">
+                    Añadir Serie Manual
+                </label>
+                
+                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <div style="flex: 3; min-width: 200px;">
+                        <select id="exerciseSelect" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 1rem;">
+                            {% for ex in exercises %}
+                                <option value="{{ ex.id }}">{{ ex.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div style="flex: 1; min-width: 100px; position: relative;">
+                        <input type="number" id="weightInput" placeholder="0" step="0.5" style="width: 100%; padding: 12px; padding-right: 30px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 1rem;">
+                        <span style="position: absolute; right: 10px; top: 13px; color: #94A3B8; font-size: 0.8rem; font-weight: bold;">KG</span>
+                    </div>
+
+                    <div style="flex: 1; min-width: 100px; position: relative;">
+                        <input type="number" id="repsInput" placeholder="0" style="width: 100%; padding: 12px; padding-right: 30px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 1rem;">
+                        <span style="position: absolute; right: 10px; top: 13px; color: #94A3B8; font-size: 0.8rem; font-weight: bold;">REPS</span>
+                    </div>
+
+                    <button type="button" onclick="addSet()" class="action-key" style="width: 50px; height: 46px; display: flex; align-items: center; justify-content: center; background: var(--primary); color: white; border-radius: 8px;">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="widget-title" style="margin-bottom: 20px;">Resumen de la Sesión</div>
+
+            <div style="display: grid; grid-template-columns: 50px 1fr 150px 150px 50px; padding: 10px 20px; color: var(--text-muted); font-size: 0.85rem; font-weight: 700; border-bottom: 2px solid #eee; margin-bottom: 10px;">
+                <div>#</div>
+                <div>Ejercicio</div>
+                <div style="text-align: center;">Peso (Kg)</div>
+                <div style="text-align: center;">Reps</div>
+                <div></div>
+            </div>
+
+            <div id="setsList" style="display: flex; flex-direction: column; gap: 8px;">
+                </div>
+
+            <div id="emptyMsg" style="padding: 40px; text-align: center; color: var(--text-muted); font-style: italic; background: #F9FAFB; border-radius: 12px; border: 1px dashed #ddd; margin-top: 10px;">
+                No hay series. ¡Selecciona una rutina o añade ejercicios arriba!
+            </div>
+
+            <div style="margin-top: 40px; text-align: right;">
+                <button type="submit" class="action-key" style="background: #059669; color: white; padding: 15px 40px; font-size: 1.1rem; width: auto; display: inline-flex;">
+                    <i class="fas fa-check-circle" style="margin-right: 10px;"></i> Guardar Entrenamiento
+                </button>
+            </div>
+
+        </div>
+    </div>
+</form>
+
+<script>
+    let sets = {{ preloaded_json|safe }};
+
+    function loadRoutine() {
+        const id = document.getElementById('routineLoader').value;
+        if(id) window.location.href = `/gym/log?routine_id=${id}`;
+    }
+
+    function renderList() {
+        const container = document.getElementById('setsList');
+        const emptyMsg = document.getElementById('emptyMsg');
+        const inputData = document.getElementById('workoutData');
+
+        container.innerHTML = '';
+
+        if (sets.length === 0) {
+            emptyMsg.style.display = 'block';
+            inputData.value = '[]';
+            return;
+        } else {
+            emptyMsg.style.display = 'none';
+        }
+
+        sets.forEach((set, index) => {
+            const row = document.createElement('div');
+            row.className = 'set-row-item';
+            
+            // Estilo base de la fila
+            let borderColor = set.weight === '' ? 'var(--primary)' : 'transparent';
+            let bgColor = set.weight === '' ? '#EFF6FF' : 'white';
+
+            row.style.cssText = `
+                display: grid; 
+                grid-template-columns: 50px 1fr 150px 150px 50px; 
+                align-items: center; 
+                background: ${bgColor}; 
+                padding: 15px 20px; 
+                border-radius: 10px; 
+                border: 1px solid #E5E7EB;
+                border-left: 5px solid ${borderColor};
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                transition: all 0.2s;
+            `;
+
+            row.innerHTML = `
+                <div style="font-weight: 700; color: #9CA3AF;">${index + 1}</div>
+                <div style="font-weight: 600; font-size: 1.05rem; color: var(--text-main);">${set.name}</div>
+                
+                <div style="text-align: center;">
+                    <input type="number" value="${set.weight}" placeholder="-" 
+                        onchange="updateSet(${index}, 'weight', this.value)" 
+                        style="width: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; text-align: center; font-weight: bold; color: var(--text-main);">
+                </div>
+
+                <div style="text-align: center;">
+                    <input type="number" value="${set.reps}" placeholder="-" 
+                        onchange="updateSet(${index}, 'reps', this.value)" 
+                        style="width: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; text-align: center; font-weight: bold; color: var(--text-main);">
+                </div>
+
+                <div style="text-align: right;">
+                    <button type="button" onclick="removeSet(${index})" style="color: #EF4444; border: none; background: none; cursor: pointer; padding: 5px; font-size: 1.1rem;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+
+            // Marcar visualmente como completado si se escriben datos
+            if(set.weight !== '' && set.reps !== '') {
+                row.style.borderLeftColor = "#059669"; // Verde
+                row.style.background = "#F0FDF4";
+            }
+
+            container.appendChild(row);
+        });
+
+        inputData.value = JSON.stringify(sets);
+    }
+
+    function addSet() {
+        const select = document.getElementById('exerciseSelect');
+        const w = document.getElementById('weightInput').value;
+        const r = document.getElementById('repsInput').value;
+
+        if(!w || !r) return alert("Introduce peso y repeticiones");
+
+        sets.push({
+            id: select.value,
+            name: select.options[select.selectedIndex].text,
+            weight: w,
+            reps: r
+        });
+
+        renderList();
+        // Limpiar inputs
+        document.getElementById('repsInput').value = '';
+        document.getElementById('repsInput').focus();
+    }
+
+    function updateSet(index, field, value) {
+        sets[index][field] = value;
+        renderList(); // Re-renderizar para actualizar colores de borde
+    }
+
+    function removeSet(index) {
+        sets.splice(index, 1);
+        renderList();
+    }
+
+    renderList();
+</script>
+
+<style>
+    /* Responsive para móvil */
+    @media (max-width: 768px) {
+        .set-row-item {
+            grid-template-columns: 1fr 1fr !important;
+            grid-template-areas: 
+                "name name"
+                "weight reps"
+                "delete delete";
+            gap: 10px;
+        }
+        .set-row-item > div:nth-child(1) { display: none; } /* Ocultar numero */
+        .set-row-item > div:nth-child(2) { grid-area: name; }
+        .set-row-item > div:nth-child(3) { grid-area: weight; text-align: left !important; }
+        .set-row-item > div:nth-child(4) { grid-area: reps; text-align: right !important; }
+        .set-row-item > div:nth-child(5) { grid-area: delete; text-align: right; margin-top: -40px;} /* Botón borrar arriba */
+        
+        /* Ocultar cabecera tabla en móvil */
+        div[style*="display: grid; grid-template-columns: 50px"] {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}

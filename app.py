@@ -1,12 +1,18 @@
 import os
 import re
 import json
+import datetime
+
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 # En app.py, cambia la línea de importación por esta:
 from models import db, User, Receta, MenuSemanal, MenuSelection, TareaLimpieza, Lavadora, ShoppingItem, Ingredient, RecipeIngredient
 from forms import RecetaForm, LoginForm, RegistrationForm
 from datetime import datetime, timedelta, date # Asegúrate de importar esto
+from models import Exercise, WorkoutSession, WorkoutSet # Añadir a la lista existente
+from forms import ExerciseForm # Añadir a la lista existente
+from models import Routine, RoutineExercise # Añadir a la lista
+from forms import RoutineForm # Añadir a la lista
 # --- Configuración Inicial ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'clave_secreta_pro_home_os' # Cambia esto en producción
@@ -587,6 +593,195 @@ def edit_recipe(id):
                            receta_editar=receta, # Objeto receta
                            preloaded_json=preloaded_json) # JSON para JS
 
+@app.route('/gym')
+@login_required
+def gym_dashboard():
+    # 1. Sesiones recientes
+    recent_sessions = WorkoutSession.query.filter_by(user_id=current_user.id).order_by(WorkoutSession.date.desc()).limit(5).all()
+    
+    # 2. Ejercicios (para el contador del catálogo)
+    exercises = Exercise.query.filter_by(user_id=current_user.id).all()
+
+    # 3. RUTINAS (¡NUEVO! Añadimos esto)
+    routines = Routine.query.filter_by(user_id=current_user.id).all()
+    
+    # Pasamos 'routines' a la plantilla
+    return render_template('gym/dashboard.html', sessions=recent_sessions, exercises=exercises, routines=routines)
+@app.route('/gym/exercises', methods=['GET', 'POST'])
+@login_required
+def gym_exercises():
+    form = ExerciseForm()
+    if form.validate_on_submit():
+        new_ex = Exercise(
+            name=form.name.data,
+            muscle_group=form.muscle_group.data,
+            user_id=current_user.id
+        )
+        db.session.add(new_ex)
+        db.session.commit()
+        flash('Ejercicio añadido al catálogo.', 'success')
+        return redirect(url_for('gym_exercises'))
+    
+    exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.muscle_group, Exercise.name).all()
+    return render_template('gym/exercises.html', form=form, exercises=exercises)
+@app.route('/gym/log', methods=['GET', 'POST'])
+@login_required
+def gym_log():
+    # 1. Obtener datos para los selectores (Ejercicios y Rutinas disponibles)
+    exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.name).all()
+    routines = Routine.query.filter_by(user_id=current_user.id).all()
+    
+    # 2. Lógica de PRECARGA (Si la URL trae ?routine_id=X)
+    preloaded_sets = []
+    routine_id = request.args.get('routine_id')
+    
+    if routine_id:
+        routine = Routine.query.get(routine_id)
+        # Seguridad: verificar que la rutina pertenece al usuario actual
+        if routine and routine.user_id == current_user.id:
+            for ex_assoc in routine.exercises:
+                # Añadimos un "esqueleto" de serie para que el JS lo pinte
+                preloaded_sets.append({
+                    'id': str(ex_assoc.exercise_id),
+                    'name': ex_assoc.exercise.name,
+                    'weight': '', # Dejamos vacío para rellenar en el gym
+                    'reps': ''
+                })
+
+    # 3. Lógica de GUARDADO (Cuando se envía el formulario POST)
+    if request.method == 'POST':
+        data_json = request.form.get('workout_data')
+        note = request.form.get('note')
+        
+        if data_json:
+            try:
+                # A. Crear la Sesión (Cabecera)
+                new_session = WorkoutSession(
+                    user_id=current_user.id, 
+                    note=note, 
+                    date=datetime.now() # Usa la hora actual
+                )
+                db.session.add(new_session)
+                db.session.flush() # Necesario para obtener el ID de la sesión antes de seguir
+                
+                # B. Procesar el JSON y guardar las Series (Detalle)
+                sets_data = json.loads(data_json)
+                
+                for index, s in enumerate(sets_data):
+                    # Solo guardamos si el usuario rellenó peso y reps
+                    # (Esto filtra los ejercicios de la rutina que se hayan dejado en blanco)
+                    if s.get('weight') and s.get('reps'):
+                        new_set = WorkoutSet(
+                            session_id=new_session.id,
+                            exercise_id=int(s['id']),
+                            weight=float(s['weight']),
+                            reps=int(s['reps']),
+                            order=index
+                        )
+                        db.session.add(new_set)
+                
+                db.session.commit()
+                flash('Entrenamiento registrado. ¡Buen trabajo!', 'success')
+                return redirect(url_for('gym_dashboard'))
+                
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error al guardar entreno: {e}")
+                flash('Hubo un error al guardar el entrenamiento.', 'danger')
+                
+    # 4. Renderizar la plantilla (pasando el JSON precargado si existe)
+    return render_template('gym/log_workout.html', 
+                           exercises=exercises, 
+                           routines=routines, 
+                           preloaded_json=json.dumps(preloaded_sets))
+
+# Asegúrate de importar esto arriba del todo en app.py, o ponlo dentro de la función así:
+from itertools import groupby 
+
+@app.route('/gym/progress/<int:exercise_id>')
+@login_required
+def gym_progress(exercise_id):
+    exercise = Exercise.query.get_or_404(exercise_id)
+    
+    # Seguridad: comprobar que el ejercicio es tuyo
+    if exercise.user_id != current_user.id:
+        flash('No tienes permiso para ver esto.', 'error')
+        return redirect(url_for('gym_dashboard'))
+    
+    # 1. Obtener historial ordenado por fecha (ASCENDENTE para la gráfica)
+    history = db.session.query(WorkoutSet, WorkoutSession.date)\
+        .join(WorkoutSession)\
+        .filter(WorkoutSet.exercise_id == exercise_id)\
+        .order_by(WorkoutSession.date.asc())\
+        .all()
+    
+    # 2. Preparar datos para Chart.js
+    chart_labels = [] # Eje X: Fechas
+    chart_data = []   # Eje Y: Pesos Máximos
+    
+    # Agrupamos por fecha para sacar el "mejor levantamiento" de cada día
+    # (Nota: groupby requiere que los datos ya vengan ordenados, por eso el .order_by de arriba)
+    for date_obj, group in groupby(history, key=lambda x: x[1].strftime('%Y-%m-%d')):
+        sets_that_day = list(group)
+        # Buscamos el peso máximo levantado ese día
+        max_weight = max([s[0].weight for s in sets_that_day])
+        
+        # Formateamos la fecha para que quede bonita en la gráfica (ej: 25 May)
+        date_label = datetime.strptime(date_obj, '%Y-%m-%d').strftime('%d %b')
+        
+        chart_labels.append(date_label)
+        chart_data.append(max_weight)
+        
+    # 3. Renderizar
+    # Pasamos 'labels' y 'data' que es lo que pide tu HTML y causaba el error
+    return render_template('gym/progress.html', 
+                           exercise=exercise, 
+                           history=reversed(history), # Invertimos para la tabla (lo más nuevo arriba)
+                           labels=chart_labels, 
+                           data=chart_data)
+    
+@app.route('/gym/routines')
+@login_required
+def gym_routines():
+    routines = Routine.query.filter_by(user_id=current_user.id).all()
+    return render_template('gym/routines_list.html', routines=routines)
+
+@app.route('/gym/routines/new', methods=['GET', 'POST'])
+@login_required
+def create_routine():
+    form = RoutineForm()
+    all_exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.name).all()
+    
+    if request.method == 'POST':
+        # 1. Crear la Rutina
+        new_routine = Routine(
+            name=request.form.get('name'),
+            description=request.form.get('description'),
+            user_id=current_user.id
+        )
+        db.session.add(new_routine)
+        db.session.flush() # Para tener ID
+        
+        # 2. Añadir Ejercicios desde JSON
+        exercises_json = request.form.get('exercises_data')
+        if exercises_json:
+            try:
+                items = json.loads(exercises_json)
+                for i, item in enumerate(items):
+                    assoc = RoutineExercise(
+                        routine_id=new_routine.id,
+                        exercise_id=int(item['id']),
+                        order=i
+                    )
+                    db.session.add(assoc)
+            except Exception as e:
+                print(e)
+        
+        db.session.commit()
+        flash('Rutina creada correctamente.', 'success')
+        return redirect(url_for('gym_routines'))
+
+    return render_template('gym/create_routine.html', form=form, exercises=all_exercises)
 
 # --- EJECUCIÓN ---
 if __name__ == '__main__':

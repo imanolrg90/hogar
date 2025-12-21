@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Nueva Rutina{% endblock %}
+{% block content %}
+<div class="header-section">
+    <h1>Crear Rutina</h1>
+</div>
+
+<div class="bento-grid">
+    <div class="bento-card span-2">
+        <form method="POST">
+            <div style="margin-bottom: 15px;">
+                <label>Nombre de la Rutina</label>
+                <input type="text" name="name" class="form-control" required style="width: 100%; padding: 10px;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label>Descripción (Opcional)</label>
+                <input type="text" name="description" class="form-control" style="width: 100%; padding: 10px;">
+            </div>
+
+            <div style="background: #F3F4F6; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+                <label>Añadir Ejercicios a la Rutina</label>
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <select id="exerciseSelect" style="flex: 1; padding: 10px;">
+                        {% for ex in exercises %}
+                            <option value="{{ ex.id }}">{{ ex.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" onclick="addExercise()" class="action-key dark" style="width: auto;">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="routineList" style="margin-bottom: 20px;">
+                </div>
+
+            <input type="hidden" name="exercises_data" id="exercisesData">
+            <button type="submit" class="action-key">Guardar Rutina</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    let routineExercises = [];
+
+    function addExercise() {
+        const select = document.getElementById('exerciseSelect');
+        const id = select.value;
+        const name = select.options[select.selectedIndex].text;
+
+        routineExercises.push({ id: id, name: name });
+        render();
+    }
+
+    function remove(index) {
+        routineExercises.splice(index, 1);
+        render();
+    }
+
+    function render() {
+        const list = document.getElementById('routineList');
+        list.innerHTML = '';
+        routineExercises.forEach((item, index) => {
+            list.innerHTML += `
+                <div style="display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee;">
+                    <span>${index + 1}. ${item.name}</span>
+                    <button type="button" onclick="remove(${index})" style="color: red; border: none; background: none; cursor: pointer;">X</button>
+                </div>
+            `;
+        });
+        document.getElementById('exercisesData').value = JSON.stringify(routineExercises);
+    }
+</script>
+{% endblock %}

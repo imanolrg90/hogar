@@ -46,10 +46,10 @@
 </a>
                 
 
-                <a href="#" class="{% if 'limpieza' in request.path %}active{% endif %}" style="opacity: 0.5; cursor: not-allowed;">
-                    <i class="fas fa-broom" style="width: 20px;"></i> 
-                    Limpieza (Pronto)
-                </a>
+<a href="{{ url_for('gym_dashboard') }}" class="{% if 'gym' in request.path %}active{% endif %}">
+    <i class="fas fa-dumbbell" style="width: 20px;"></i> 
+    Gimnasio
+</a>
             </nav>
         </div>
 

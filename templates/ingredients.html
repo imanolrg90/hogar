@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario y Precios{% endblock %}
+
+{% block content %}
+<div style="max-width: 1100px; margin: 0 auto; padding-bottom: 60px;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px;">
+        <div>
+            <h1 style="font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 5px;">Despensa</h1>
+            <p style="color: var(--text-muted); font-size: 1rem;">Gestiona tus materias primas y precios de mercado.</p>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px;">
+        
+        <div class="bento-card" style="height: fit-content; padding: 30px; position: sticky; top: 20px;">
+            <h3 style="margin-bottom: 25px; font-size: 1.2rem; display: flex; align-items: center; gap: 10px;">
+                <span style="background: #E5E7EB; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+                    <i class="fas fa-plus"></i>
+                </span>
+                Nuevo Producto
+            </h3>
+
+            <form method="POST">
+                <div style="margin-bottom: 20px;">
+                    <label class="label-premium">NOMBRE DEL PRODUCTO</label>
+                    <input type="text" name="name" class="modern-input" placeholder="Ej. Solomillo" required autocomplete="off">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+                    <div>
+                        <label class="label-premium">KCAL / 100g</label>
+                        <div class="input-wrapper">
+                            <input type="number" step="0.1" name="kcal" class="modern-input" placeholder="0" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="label-premium">PRECIO € / KG</label>
+                        <div class="input-wrapper">
+                            <input type="number" step="0.01" name="price_kg" class="modern-input" placeholder="0.00" required>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-black-premium">Añadir a la Despensa</button>
+            </form>
+        </div>
+
+        <div class="bento-card" style="padding: 0; overflow: hidden; background: rgba(255, 255, 255, 0.6);">
+            
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: rgba(0,0,0,0.02); text-align: left;">
+                            <th class="th-premium" style="padding-left: 30px;">Producto</th>
+                            <th class="th-premium" style="text-align: right;">Energía (100g)</th>
+                            <th class="th-premium" style="text-align: right;">Precio (KG)</th>
+                            <th class="th-premium" style="text-align: right; padding-right: 30px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ing in ingredients %}
+                        <tr class="tr-hover">
+                            <td style="padding: 18px 30px; font-weight: 500; color: var(--text-main);">
+                                {{ ing.name }}
+                            </td>
+                            <td style="padding: 18px 20px; text-align: right; color: var(--text-muted); font-feature-settings: 'tnum';">
+                                {{ ing.kcal_100g|int }} kcal
+                            </td>
+                            <td style="padding: 18px 20px; text-align: right; font-weight: 600; color: var(--text-main); font-feature-settings: 'tnum';">
+                                {{ "%.2f"|format(ing.price_kg) }} €
+                            </td>
+                            <td style="padding: 18px 30px; text-align: right;">
+                                <button onclick="openEditModal('{{ ing.id }}', '{{ ing.name }}', '{{ ing.kcal_100g }}', '{{ ing.price_kg }}')" 
+                                        style="border: none; background: #EEF2FF; color: #4F46E5; padding: 8px; border-radius: 8px; cursor: pointer; margin-right: 5px; transition: 0.2s;">
+                                    <i class="fas fa-pen" style="font-size: 0.8rem;"></i>
+                                </button>
+                                
+                                <a href="{{ url_for('delete_ingredient', id=ing.id) }}" 
+                                   onclick="return confirm('¿Seguro que quieres borrar {{ ing.name }}? Se eliminará de las recetas también.')"
+                                   style="display: inline-block; background: #FEF2F2; color: #DC2626; padding: 8px; border-radius: 8px; text-decoration: none; transition: 0.2s;">
+                                    <i class="fas fa-trash" style="font-size: 0.8rem;"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" style="padding: 40px; text-align: center; color: var(--text-muted);">
+                                No hay ingredientes.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="editModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; justify-content: center; align-items: center;">
+    
+    <div onclick="closeEditModal()" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); backdrop-filter: blur(5px);"></div>
+
+    <div class="bento-card" style="position: relative; width: 100%; max-width: 400px; padding: 30px; background: white; animation: slideUp 0.3s ease;">
+        <h3 style="margin-bottom: 20px;">Editar Ingrediente</h3>
+        
+        <form id="editForm" method="POST" action="">
+            <div style="margin-bottom: 20px;">
+                <label class="label-premium">Nombre</label>
+                <input type="text" id="editName" name="name" class="modern-input" required>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+                <div>
+                    <label class="label-premium">Kcal / 100g</label>
+                    <input type="number" id="editKcal" step="0.1" name="kcal" class="modern-input" required>
+                </div>
+                <div>
+                    <label class="label-premium">Precio €/KG</label>
+                    <input type="number" id="editPrice" step="0.01" name="price_kg" class="modern-input" required>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="closeEditModal()" style="flex: 1; padding: 12px; border: 1px solid #E5E7EB; background: white; border-radius: 10px; cursor: pointer; font-weight: 600; color: #6B7280;">Cancelar</button>
+                <button type="submit" class="btn-black-premium" style="flex: 1;">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditModal(id, name, kcal, price) {
+        // 1. Mostrar el modal
+        const modal = document.getElementById('editModal');
+        modal.style.display = 'flex';
+
+        // 2. Rellenar los datos actuales en los inputs
+        document.getElementById('editName').value = name;
+        document.getElementById('editKcal').value = kcal;
+        document.getElementById('editPrice').value = price;
+
+        // 3. Actualizar la acción del formulario con el ID correcto
+        const form = document.getElementById('editForm');
+        form.action = "/ingredients/edit/" + id;
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+</script>
+
+<style>
+    /* Estilos extra para la tabla y modal */
+    .bento-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 24px;
+        box-shadow: 0 20px 40px -10px rgba(0,0,0,0.05);
+    }
+    
+    /* ... (Resto de estilos previos se mantienen igual) ... */
+
+    .label-premium {
+        font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px; 
+        text-transform: uppercase; color: #6B7280; margin-bottom: 8px; display: block;
+    }
+    .modern-input {
+        width: 100%; background: #F3F4F6; border: 1px solid transparent; 
+        border-radius: 12px; padding: 12px 16px; font-size: 0.95rem; color: #1F2937; box-sizing: border-box;
+    }
+    .modern-input:focus { background: #FFF; border-color: #E5E7EB; outline: none; }
+    
+    .btn-black-premium {
+        background: #111827; color: white; border: none; padding: 14px; 
+        border-radius: 12px; font-weight: 600; cursor: pointer; width: 100%;
+        transition: transform 0.1s;
+    }
+    .btn-black-premium:active { transform: scale(0.98); }
+
+    .th-premium {
+        font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; 
+        color: #9CA3AF; font-weight: 600; padding: 15px 20px;
+    }
+    .tr-hover { border-bottom: 1px solid #F3F4F6; }
+    .tr-hover:hover { background: rgba(255,255,255,0.6); }
+
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}

@@ -32,10 +32,15 @@
                 </a>
 
                 <a href="{{ url_for('recetas_page') }}" class="{% if 'recetas' in request.path %}active{% endif %}">
-                    <i class="fas fa-book" style="width: 20px;"></i> 
-                    Recetas
-                </a>
-                <a href="{{ url_for('shopping_list') }}" class="{% if 'shopping_list' in request.path %}active{% endif %}">
+    <i class="fas fa-book" style="width: 20px;"></i> 
+    Recetas
+</a>
+
+<a href="{{ url_for('ingredients_manager') }}" class="{% if 'ingredients' in request.path %}active{% endif %}">
+    <i class="fas fa-carrot" style="width: 20px;"></i> 
+    Ingredientes
+</a>
+<a href="{{ url_for('shopping_list') }}" class="{% if 'shopping_list' in request.path %}active{% endif %}">
     <i class="fas fa-shopping-cart" style="width: 20px;"></i> 
     Lista Compra
 </a>

@@ -3,73 +3,245 @@
 {% block title %}Mis Recetas{% endblock %}
 
 {% block content %}
-<div class="header-section" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
-    <div>
-        <h1>Libro de Cocina</h1>
-        <p style="color: var(--text-muted);">Colección personal de {{ current_user.username }}</p>
+<div class="page-container">
+    
+    <div class="header-section">
+        <div>
+            <h1 class="page-title">Libro de Cocina</h1>
+            <p class="page-subtitle">Colección de {{ current_user.username }} • {{ recetas|length }} recetas</p>
+        </div>
+        
+        <a href="{{ url_for('create_recipe') }}" class="btn-primary-action">
+            <i class="fas fa-plus"></i> Nueva Receta
+        </a>
     </div>
-    <a href="{{ url_for('add_recipe') }}" class="btn-primary">
-        <i class="fas fa-plus"></i> Nueva Receta
-    </a>
+
+    <div class="toolbar">
+        <div class="search-wrapper">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Buscar receta..." class="search-input">
+        </div>
+        </div>
+
+    <div class="table-card glass-effect">
+        {% if recetas %}
+            <div class="table-responsive">
+                <table id="recipesTable" class="premium-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)" style="width: 40%; cursor: pointer;">
+                                Plato <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th onclick="sortTable(1)" style="text-align: right; cursor: pointer;">
+                                Energía <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th onclick="sortTable(2)" style="text-align: right; cursor: pointer;">
+                                Coste <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th onclick="sortTable(3)" style="text-align: center; cursor: pointer;">
+                                Ingredientes <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th style="text-align: right; width: 100px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for receta in recetas %}
+                        <tr>
+                            <td data-val="{{ receta.title | lower }}">
+                                <div class="recipe-name">{{ receta.title }}</div>
+                                <div class="recipe-desc">{{ receta.description or 'Sin descripción' }}</div>
+                            </td>
+                            
+                            <td style="text-align: right;" data-val="{{ receta.total_stats.kcal }}">
+                                <span class="badge-kcal">
+                                    <i class="fas fa-fire-alt"></i> {{ receta.total_stats.kcal }}
+                                </span>
+                            </td>
+
+                            <td style="text-align: right;" data-val="{{ receta.total_stats.price }}">
+                                <span class="price-text">{{ "%.2f"|format(receta.total_stats.price) }} €</span>
+                            </td>
+
+                            <td style="text-align: center;" data-val="{{ receta.ingredients_assoc|length }}">
+                                <span style="color: var(--text-muted); font-size: 0.9rem;">
+                                    {{ receta.ingredients_assoc|length }}
+                                </span>
+                            </td>
+
+                            <td style="text-align: right;">
+                                <div style="display: flex; gap: 5px; justify-content: flex-end;">
+                                    <a href="{{ url_for('edit_recipe', id=receta.id) }}" class="btn-icon edit" title="Editar">
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    <a href="{{ url_for('delete_recipe', id=receta.id) }}" 
+                                       onclick="return confirm('¿Borrar {{ receta.title }}?')" 
+                                       class="btn-icon delete" title="Borrar">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-utensils"></i>
+                <h3>Tu recetario está vacío</h3>
+                <p>Empieza añadiendo tu primer plato estrella.</p>
+                <a href="{{ url_for('create_recipe') }}" class="btn-text">Crear receta ahora &rarr;</a>
+            </div>
+        {% endif %}
+    </div>
 </div>
 
-{% if recetas %}
-    <div class="bento-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 30px;">
-        
-        {% for receta in recetas %}
-        <div class="bento-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.6);">
-            
-            <div style="padding: 20px 25px; background: linear-gradient(to right, rgba(255,255,255,0.8), rgba(255,255,255,0.2)); border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; color: var(--text-muted);">
-                    {% if receta.tipo == 'Comida' %}☀️ ALMUERZO
-                    {% elif receta.tipo == 'Cena' %}🌙 CENA
-                    {% elif receta.tipo == 'Desayuno' %}☕ DESAYUNO
-                    {% else %}🍴 SNACK{% endif %}
-                </span>
-                <span style="font-weight: 700; font-size: 0.85rem; color: var(--primary);">{{ receta.kcal }} kcal</span>
-            </div>
+<style>
+    /* --- ESTILOS GENERALES --- */
+    .page-container { max-width: 1200px; margin: 0 auto; padding-bottom: 60px; }
+    .header-section { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; }
+    .page-title { font-size: 2rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 5px; color: var(--text-main); }
+    .page-subtitle { color: var(--text-muted); font-size: 0.95rem; }
 
-            <div style="padding: 25px;">
-                <h3 style="font-size: 1.4rem; margin: 0 0 15px 0; color: var(--text-main);">{{ receta.nombre }}</h3>
+    /* --- BOTÓN PRINCIPAL --- */
+    .btn-primary-action {
+        background: #111827; color: white; text-decoration: none; padding: 12px 24px;
+        border-radius: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;
+        transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .btn-primary-action:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.15); color: white; }
 
-                <div style="margin-bottom: 20px;">
-                    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; margin-bottom: 8px;">INGREDIENTES</div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-                        {% for ing in receta.ingredientes[:3] %}
-                            <span style="background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; color: var(--text-main);">
-                                {{ ing.nombre }}
-                            </span>
-                        {% endfor %}
-                        {% if receta.ingredientes|length > 3 %}
-                            <span style="background: rgba(0,0,0,0.02); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; color: var(--text-muted);">
-                                +{{ receta.ingredientes|length - 3 }}
-                            </span>
-                        {% endif %}
-                    </div>
-                </div>
+    /* --- BARRA DE BÚSQUEDA --- */
+    .toolbar { margin-bottom: 20px; }
+    .search-wrapper {
+        position: relative; max-width: 400px;
+        background: white; border-radius: 12px; border: 1px solid #E5E7EB;
+        display: flex; align-items: center; padding-left: 15px;
+        transition: border-color 0.2s;
+    }
+    .search-wrapper:focus-within { border-color: #9CA3AF; }
+    .search-icon { color: #9CA3AF; font-size: 0.9rem; }
+    .search-input {
+        width: 100%; border: none; background: transparent; padding: 12px 15px; outline: none; font-size: 0.95rem;
+    }
 
-                <div style="display: flex; gap: 10px; margin-top: auto;">
-                 <a href="{{ url_for('edit_recipe', recipe_id=receta.id) }}" 
-   style="margin-left: auto; text-decoration: none; color: var(--text-main); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; transition: background 0.2s;">
-    Editar <i class="fas fa-pen" style="font-size: 0.8rem;"></i>
-</a>
-                    <a href="{{ url_for('delete_recipe', recipe_id=receta.id) }}" 
-                       onclick="return confirm('¿Borrar {{ receta.nombre }}?')"
-                       style="padding: 8px 12px; background: #FEF2F2; color: #EF4444; border-radius: 8px; display: flex; align-items: center; justify-content: center; text-decoration: none;">
-                        <i class="fas fa-trash"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
+    /* --- TARJETA DE TABLA --- */
+    .table-card {
+        background: white; border-radius: 20px; overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.04);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+    }
+    .table-responsive { overflow-x: auto; }
+    
+    .premium-table { width: 100%; border-collapse: collapse; }
+    .premium-table th {
+        background: #F9FAFB; padding: 15px 25px; text-align: left;
+        font-size: 0.75rem; text-transform: uppercase; color: #6B7280; font-weight: 700; letter-spacing: 0.5px;
+        border-bottom: 1px solid #E5E7EB; user-select: none;
+    }
+    .premium-table th:hover { background: #F3F4F6; color: #111827; }
+    .sort-icon { margin-left: 5px; opacity: 0.3; }
+    
+    .premium-table td {
+        padding: 16px 25px; border-bottom: 1px solid #F3F4F6; vertical-align: middle;
+        transition: background 0.1s;
+    }
+    .premium-table tr:last-child td { border-bottom: none; }
+    .premium-table tr:hover td { background: #FAFAFA; }
 
-    </div>
-{% else %}
-    <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px; background: rgba(255,255,255,0.5); border-radius: 24px; border: 1px dashed rgba(0,0,0,0.1);">
-        <i class="fas fa-utensils" style="font-size: 3rem; color: var(--text-muted); opacity: 0.3; margin-bottom: 20px;"></i>
-        <h3 style="margin: 0; color: var(--text-main);">Tu recetario está vacío</h3>
-        <p style="color: var(--text-muted); margin-bottom: 30px;">Añade tus platos favoritos para empezar a planificar.</p>
-        <a href="{{ url_for('add_recipe') }}" class="btn-primary">Crear primera receta</a>
-    </div>
-{% endif %}
+    /* --- CELDAS ESPECÍFICAS --- */
+    .recipe-name { font-weight: 600; color: #1F2937; margin-bottom: 2px; }
+    .recipe-desc { font-size: 0.85rem; color: #9CA3AF; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    .badge-kcal {
+        font-size: 0.85rem; color: #D97706; background: #FFFBEB;
+        padding: 4px 8px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .price-text { font-weight: 700; color: #059669; font-feature-settings: "tnum"; }
+
+    /* --- ACCIONES --- */
+    .btn-icon {
+        width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+        text-decoration: none; transition: 0.2s; font-size: 0.85rem;
+    }
+    .edit { color: #4F46E5; background: #EEF2FF; }
+    .edit:hover { background: #4F46E5; color: white; }
+    .delete { color: #DC2626; background: #FEF2F2; }
+    .delete:hover { background: #DC2626; color: white; }
+
+    /* --- EMPTY STATE --- */
+    .empty-state { padding: 60px; text-align: center; color: #9CA3AF; }
+    .empty-state i { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
+    .btn-text { color: #4F46E5; font-weight: 600; text-decoration: none; margin-top: 10px; display: inline-block; }
+</style>
+
+<script>
+    // 1. FUNCIÓN DE FILTRADO (BUSCADOR)
+    function filterTable() {
+        const input = document.getElementById("searchInput");
+        const filter = input.value.toLowerCase();
+        const table = document.getElementById("recipesTable");
+        const tr = table.getElementsByTagName("tr");
+
+        for (let i = 1; i < tr.length; i++) { // Empezamos en 1 para saltar el header
+            // Buscamos en la primera columna (Nombre)
+            const tdName = tr[i].getElementsByTagName("td")[0];
+            if (tdName) {
+                const txtValue = tdName.textContent || tdName.innerText;
+                if (txtValue.toLowerCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+
+    // 2. FUNCIÓN DE ORDENACIÓN (CLICK EN HEADER)
+    function sortTable(n) {
+        const table = document.getElementById("recipesTable");
+        let rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+        switching = true;
+        dir = "asc"; // Dirección inicial
+
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+
+            for (i = 1; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[n];
+                y = rows[i + 1].getElementsByTagName("TD")[n];
+
+                // Usamos el atributo 'data-val' para ordenar números correctamente
+                // Si no hay data-val, usamos el texto
+                let xVal = x.getAttribute('data-val') || x.innerHTML.toLowerCase();
+                let yVal = y.getAttribute('data-val') || y.innerHTML.toLowerCase();
+
+                // Intentamos convertir a número si es posible
+                if (!isNaN(parseFloat(xVal)) && !isNaN(parseFloat(yVal))) {
+                    xVal = parseFloat(xVal);
+                    yVal = parseFloat(yVal);
+                }
+
+                if (dir == "asc") {
+                    if (xVal > yVal) { shouldSwitch = true; break; }
+                } else if (dir == "desc") {
+                    if (xVal < yVal) { shouldSwitch = true; break; }
+                }
+            }
+
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+                switchcount++;
+            } else {
+                if (switchcount == 0 && dir == "asc") {
+                    dir = "desc";
+                    switching = true;
+                }
+            }
+        }
+    }
+</script>
 {% endblock %}

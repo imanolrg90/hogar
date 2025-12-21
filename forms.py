@@ -13,7 +13,7 @@ class IngredienteForm(FlaskForm):
 class RecetaForm(FlaskForm):
     nombre = StringField('Nombre', validators=[DataRequired()])
     kcal = FloatField('Kcal', validators=[NumberRange(min=0)])
-    # Nuevas opciones
+    precio = FloatField('Precio (€)', validators=[NumberRange(min=0)]) # <--- NUEVO
     tipo = SelectField('Tipo', choices=[
         ('Desayuno', 'Desayuno'), 
         ('Comida', 'Comida'), 

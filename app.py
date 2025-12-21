@@ -1,11 +1,12 @@
 import os
 import re
+import json
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 # En app.py, cambia la línea de importación por esta:
-from models import db, User, Receta, Ingrediente, MenuSemanal, MenuSelection, TareaLimpieza, Lavadora, ShoppingItem
+from models import db, User, Receta, MenuSemanal, MenuSelection, TareaLimpieza, Lavadora, ShoppingItem, Ingredient, RecipeIngredient
 from forms import RecetaForm, LoginForm, RegistrationForm
-
+from datetime import datetime, timedelta, date # Asegúrate de importar esto
 # --- Configuración Inicial ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'clave_secreta_pro_home_os' # Cambia esto en producción
@@ -28,6 +29,84 @@ def load_user(id):
 # Crear tablas al inicio si no existen
 with app.app_context():
     db.create_all()
+
+@app.route('/ingredients', methods=['GET', 'POST'])
+@login_required
+def ingredients_manager():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        try:
+            kcal = float(request.form.get('kcal'))
+            price_kg = float(request.form.get('price_kg')) # Input directo en KG
+        except ValueError:
+            flash('Introduce valores numéricos válidos.', 'error')
+            return redirect(url_for('ingredients_manager'))
+        
+        exists = Ingredient.query.filter_by(name=name).first()
+        if not exists:
+            # Guardamos directamente price_kg
+            new_ing = Ingredient(name=name, kcal_100g=kcal, price_kg=price_kg)
+            db.session.add(new_ing)
+            db.session.commit()
+            flash('Ingrediente añadido.', 'success')
+        else:
+            flash('Ese ingrediente ya existe.', 'warning')
+            
+        return redirect(url_for('ingredients_manager'))
+        
+    all_ingredients = Ingredient.query.order_by(Ingredient.name).all()
+    return render_template('ingredients.html', ingredients=all_ingredients)
+
+
+@app.route('/create_recipe', methods=['GET', 'POST'])
+@login_required
+def create_recipe():
+    """
+    Crea una receta vinculando ingredientes existentes y sus cantidades.
+    Recibe un JSON desde el frontend con la lista de ingredientes seleccionados.
+    """
+    # Cargamos ingredientes para el desplegable (select)
+    all_ingredients = Ingredient.query.order_by(Ingredient.name).all()
+
+    if request.method == 'POST':
+        title = request.form.get('title')
+        description = request.form.get('description')
+        steps = request.form.get('steps')
+        
+        # 1. Crear la Receta Base
+        new_recipe = Receta(
+            title=title, 
+            description=description, 
+            steps=steps, 
+            user_id=current_user.id
+        )
+        db.session.add(new_recipe)
+        db.session.flush() # Importante: Genera el ID de la receta antes de seguir
+
+        # 2. Procesar JSON de ingredientes (viene del JavaScript del Frontend)
+        ing_data_json = request.form.get('ingredients_data')
+        
+        if ing_data_json:
+            try:
+                items = json.loads(ing_data_json)
+                for item in items:
+                    # Guardamos en la tabla intermedia (RecipeIngredient)
+                    assoc = RecipeIngredient(
+                        recipe_id=new_recipe.id,
+                        ingredient_id=int(item['id']),
+                        quantity_g=float(item['qty'])
+                    )
+                    db.session.add(assoc)
+            except Exception as e:
+                print(f"Error procesando ingredientes: {e}")
+                flash('Hubo un error al guardar los ingredientes.', 'error')
+        
+        db.session.commit()
+        flash(f'Receta "{title}" creada correctamente.', 'success')
+        return redirect(url_for('create_recipe'))
+
+    return render_template('create_recipe.html', ingredients=all_ingredients)
+
 
 
 # --- RUTAS DE AUTENTICACIÓN ---
@@ -76,19 +155,28 @@ def logout():
     flash('Has cerrado sesión correctamente.', 'info')
     return redirect(url_for('login'))
 
-
-# --- RUTAS PRINCIPALES DEL HOME OS ---
 @app.route('/')
 @login_required
 def dashboard():
-    import datetime
-    dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-    dia_actual = dias[datetime.datetime.today().weekday()]
+    # Importamos lo necesario para calcular fechas
+    from datetime import date, timedelta
     
-    menu_hoy = MenuSemanal.query.filter_by(user_id=current_user.id, dia=dia_actual).first() # Usar dia_actual en prod
-    if not menu_hoy: # Fallback si no existe
-         menu_hoy = MenuSemanal.query.filter_by(user_id=current_user.id, dia="Lunes").first()
+    # 1. Calcular el día de la semana y la fecha de inicio de ESTA semana
+    dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    hoy = date.today()
+    dia_actual_str = dias_semana[hoy.weekday()] # Ej: "Lunes"
+    
+    # Calculamos el lunes de esta semana exacta para filtrar en DB
+    inicio_semana_actual = hoy - timedelta(days=hoy.weekday())
 
+    # 2. Buscar el menú filtrando por Usuario + Día + Semana Actual
+    menu_hoy = MenuSemanal.query.filter_by(
+        user_id=current_user.id, 
+        dia=dia_actual_str,
+        week_start=inicio_semana_actual # <--- ESTA ES LA CLAVE QUE FALTABA
+    ).first()
+
+    # Consultas auxiliares (se mantienen igual)
     tareas = TareaLimpieza.query.filter_by(user_id=current_user.id).order_by(TareaLimpieza.proxima_fecha).limit(5).all()
     lavadoras = Lavadora.query.filter_by(user_id=current_user.id).all()
     total_recetas = Receta.query.filter_by(user_id=current_user.id).count()
@@ -174,115 +262,169 @@ def add_recipe():
         
     return render_template('add_recipe.html', form=form)
 
-
-@app.route('/delete_recipe/<int:recipe_id>')
-@login_required
-def delete_recipe(recipe_id):
-    receta = Receta.query.get_or_404(recipe_id)
-    
-    # Seguridad: Comprobar que la receta pertenece al usuario actual
-    if receta.user_id != current_user.id:
-        flash('No tienes permiso para eliminar esta receta.', 'danger')
-        return redirect(url_for('recetas_page'))
-        
-    try:
-        db.session.delete(receta)
-        db.session.commit()
-        flash(f'Receta eliminada.', 'info')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error al eliminar: {e}', 'danger')
-        
-    return redirect(url_for('recetas_page'))
-
-
 @app.route('/menu', methods=['GET', 'POST'])
+@app.route('/menu/<week_str>', methods=['GET', 'POST'])
 @login_required
-def menu_semanal_page():
+def menu_semanal_page(week_str=None):
+    # -----------------------------------------------------------
+    # 1. Configuración de Fechas
+    # -----------------------------------------------------------
+    if week_str:
+        try:
+            current_week = datetime.strptime(week_str, '%Y-%m-%d').date()
+        except ValueError:
+            hoy = date.today()
+            current_week = hoy - timedelta(days=hoy.weekday())
+    else:
+        hoy = date.today()
+        current_week = hoy - timedelta(days=hoy.weekday())
+
+    # Para el badge de "Semana Actual"
+    hoy_real = date.today()
+    real_current_week = hoy_real - timedelta(days=hoy_real.weekday())
+
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     tipos_comida = ['Desayuno', 'Comida', 'Merienda', 'Cena']
-    
-    # Inicializar días
-    if MenuSemanal.query.filter_by(user_id=current_user.id).count() == 0:
-        for dia in dias_semana:
-            db.session.add(MenuSemanal(dia=dia, user_id=current_user.id))
-        db.session.commit()
 
+    # -----------------------------------------------------------
+    # 2. Lógica de Guardado (POST)
+    # -----------------------------------------------------------
     if request.method == 'POST':
-        # 1. Limpiar selecciones anteriores de este usuario (Estrategia simple: borrar todo y recrear)
-        menus_usuario = MenuSemanal.query.filter_by(user_id=current_user.id).all()
-        for m in menus_usuario:
-            MenuSelection.query.filter_by(menu_id=m.id).delete()
-        
-        # 2. Guardar nuevas selecciones múltiples
-        for dia in dias_semana:
-            menu_dia = MenuSemanal.query.filter_by(dia=dia, user_id=current_user.id).first()
-            
-            for tipo in tipos_comida:
-                # getlist obtiene TODOS los valores seleccionados para ese campo
-                recetas_ids = request.form.getlist(f'{dia}_{tipo}')
-                
-                for r_id in recetas_ids:
-                    if r_id and r_id != "":
-                        seleccion = MenuSelection(
-                            menu_id=menu_dia.id,
-                            receta_id=int(r_id),
-                            tipo_comida=tipo
-                        )
-                        db.session.add(seleccion)
-                
-        db.session.commit()
+        try:
+            for dia in dias_semana:
+                # A. Buscar o Crear el registro del Día (padre)
+                menu_dia = MenuSemanal.query.filter_by(
+                    user_id=current_user.id,
+                    week_start=current_week.strftime('%Y-%m-%d'),
+                    dia=dia
+                ).first()
 
-        # 3. Recalcular Lista de Compra
-        ShoppingItem.query.filter_by(user_id=current_user.id, is_auto=True).delete()
+                if not menu_dia:
+                    menu_dia = MenuSemanal(
+                        user_id=current_user.id,
+                        week_start=current_week.strftime('%Y-%m-%d'),
+                        dia=dia
+                    )
+                    db.session.add(menu_dia)
+                    db.session.commit() # Necesitamos el ID para las selecciones
+
+                # B. Limpiar selecciones previas (CORREGIDO: usa menu_id)
+                MenuSelection.query.filter_by(menu_id=menu_dia.id).delete()
+                
+                # C. Guardar las nuevas selecciones
+                for tipo in tipos_comida:
+                    # -- RECETAS --
+                    recetas_ids = request.form.getlist(f"{dia}_{tipo}_receta")
+                    for r_id in recetas_ids:
+                        if r_id and r_id != "":
+                            sel = MenuSelection(
+                                menu_id=menu_dia.id,    # Corregido
+                                tipo_comida=tipo,       # Corregido
+                                receta_id=int(r_id)
+                            )
+                            db.session.add(sel)
+
+                    # -- INGREDIENTES SUELTOS --
+                    ing_ids = request.form.getlist(f"{dia}_{tipo}_ing_id")
+                    ing_qtys = request.form.getlist(f"{dia}_{tipo}_ing_qty")
+                    
+                    for i_id, i_qty in zip(ing_ids, ing_qtys):
+                        if i_id and i_id != "":
+                            cantidad = float(i_qty) if i_qty else 0
+                            sel = MenuSelection(
+                                menu_id=menu_dia.id,    # Corregido
+                                tipo_comida=tipo,       # Corregido
+                                ingredient_id=int(i_id),
+                                quantity=cantidad
+                            )
+                            db.session.add(sel)
+
+            db.session.commit()
+            flash('Menú guardado correctamente.', 'success')
+            return redirect(url_for('menu_semanal_page', week_str=current_week))
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error guardando menú: {e}")
+            flash(f'Error al guardar: {e}', 'error')
+
+    # -----------------------------------------------------------
+    # 3. Preparación de Datos (GET)
+    # -----------------------------------------------------------
+    menu = []
+    
+    # Usamos enumerate para calcular la fecha exacta de cada día
+    for i, dia in enumerate(dias_semana):
         
-        # Traer menús actualizados
-        menu_items = MenuSemanal.query.filter_by(user_id=current_user.id).all()
-        ingredientes_calculados = generar_lista_compra_db(menu_items)
-        
-        for item in ingredientes_calculados:
-            nuevo_item = ShoppingItem(
-                nombre=item['nombre'],
-                cantidad=item['cantidad'],
-                unidad=item['unidad'],
-                is_auto=True,
-                user_id=current_user.id
+        # 1. Obtener datos de la DB
+        dia_db = MenuSemanal.query.filter_by(
+            user_id=current_user.id, 
+            week_start=current_week.strftime('%Y-%m-%d'),
+            dia=dia
+        ).first()
+
+        # 2. Calcular la fecha visual (ej: 12/05)
+        fecha_real = current_week + timedelta(days=i)
+        fecha_formateada = fecha_real.strftime('%d/%m')
+
+        if dia_db:
+            dia_db.fecha_str = fecha_formateada # Inyectamos la fecha
+            menu.append(dia_db)
+        else:
+            # Objeto dummy para días vacíos
+            dummy = MenuSemanal(
+                user_id=current_user.id,
+                week_start=current_week.strftime('%Y-%m-%d'),
+                dia=dia
             )
-            db.session.add(nuevo_item)
-            
-        db.session.commit()
-        flash('Menú múltiple guardado y lista actualizada.', 'success')
-        return redirect(url_for('menu_semanal_page'))
+            dummy.fecha_str = fecha_formateada # Inyectamos la fecha
+            menu.append(dummy)
 
-    menu = MenuSemanal.query.filter_by(user_id=current_user.id).all()
-    mis_recetas = Receta.query.filter_by(user_id=current_user.id).order_by(Receta.nombre).all()
-    lista_compra_preview = generar_lista_compra_db(menu)
+    # Generar lista de compra y cargar catálogos
+    lista_compra = generar_lista_compra_db(menu)
+    recetas = Receta.query.filter_by(user_id=current_user.id).order_by(Receta.title).all()
+    all_ingredients = Ingredient.query.order_by(Ingredient.name).all()
 
-    return render_template('menu.html', 
-                           menu=menu, 
-                           recetas=mis_recetas, 
-                           lista_compra=lista_compra_preview)
+    # Navegación
+    prev_week = (current_week - timedelta(weeks=1)).strftime('%Y-%m-%d')
+    next_week = (current_week + timedelta(weeks=1)).strftime('%Y-%m-%d')
+
+    return render_template('menu.html',
+                           current_week=current_week,
+                           real_current_week=real_current_week,
+                           prev_week=prev_week,
+                           next_week=next_week,
+                           menu=menu,
+                           recetas=recetas,
+                           all_ingredients=all_ingredients,
+                           lista_compra=lista_compra
+                           )
 
 
-# --- FUNCIONES AUXILIARES ---
 def generar_lista_compra_db(menu_items):
-    """Lógica actualizada para soportar MenuSelection"""
     compra = {}
     tipos = ['Desayuno', 'Comida', 'Merienda', 'Cena']
 
     for item in menu_items:
-        # item es un objeto MenuSemanal
         for tipo in tipos:
-            # Usamos el método helper que creamos en el modelo
-            recetas = item.get_recetas(tipo) 
-            for receta in recetas:
-                for ing in receta.ingredientes:
-                    key = (ing.nombre, ing.unidad)
-                    compra[key] = compra.get(key, 0) + ing.cantidad
-    
+            # Usamos el nuevo método get_selections que devuelve todo
+            selecciones = item.get_selections(tipo)
+            
+            for sel in selecciones:
+                # CASO A: Es Receta
+                if sel.receta:
+                    for assoc in sel.receta.ingredients_assoc:
+                        key = (assoc.ingredient.name, "g")
+                        compra[key] = compra.get(key, 0) + assoc.quantity_g
+                
+                # CASO B: Es Ingrediente Suelto
+                elif sel.ingredient:
+                    key = (sel.ingredient.name, "g")
+                    compra[key] = compra.get(key, 0) + sel.quantity
+
     resultado = []
     for (nombre, unidad), cantidad in sorted(compra.items()):
-        resultado.append({'nombre': nombre, 'unidad': unidad, 'cantidad': cantidad})
+        resultado.append({'nombre': nombre, 'unidad': unidad, 'cantidad': round(cantidad, 1)})
     return resultado
 
 
@@ -321,74 +463,129 @@ def clear_completed_items():
     db.session.commit()
     return redirect(url_for('shopping_list'))
 
-@app.route('/edit_recipe/<int:recipe_id>', methods=['GET', 'POST'])
-@login_required
-def edit_recipe(recipe_id):
-    receta = Receta.query.get_or_404(recipe_id)
-    
-    # Seguridad: verificar dueño
-    if receta.user_id != current_user.id:
-        flash('No tienes permiso para editar esta receta.', 'danger')
-        return redirect(url_for('recetas_page'))
 
-    form = RecetaForm(obj=receta)
+@app.route('/ingredients/edit/<int:id>', methods=['POST'])
+@login_required
+def edit_ingredient(id):
+    ing = Ingredient.query.get_or_404(id)
+    
+    try:
+        ing.name = request.form.get('name')
+        ing.kcal_100g = float(request.form.get('kcal'))
+        ing.price_kg = float(request.form.get('price_kg'))
+        
+        db.session.commit()
+        flash('Ingrediente actualizado correctamente.', 'success')
+    except ValueError:
+        flash('Error en los datos numéricos.', 'error')
+    except Exception as e:
+        flash(f'Error al actualizar: {e}', 'error')
+
+    return redirect(url_for('ingredients_manager'))
+
+@app.route('/ingredients/delete/<int:id>')
+@login_required
+def delete_ingredient(id):
+    ing = Ingredient.query.get_or_404(id)
+    
+    # Verificamos si se usa en recetas para advertir (opcional, por ahora borramos)
+    # Gracias al cascade de SQLAlchemy en models.py, se borrará de las recetas automáticamente
+    try:
+        db.session.delete(ing)
+        db.session.commit()
+        flash('Ingrediente eliminado del inventario.', 'info')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar: {e}', 'error')
+        
+    return redirect(url_for('ingredients_manager'))
+
+@app.route('/delete_recipe/<int:id>')
+@login_required
+def delete_recipe(id):
+    receta = Receta.query.get_or_404(id)
+    if receta.user_id != current_user.id:
+        flash('No tienes permiso para borrar esto.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        db.session.delete(receta)
+        db.session.commit()
+        flash('Receta eliminada correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar: {e}', 'error')
+        
+    return redirect(url_for('recetas_page')) # Asegúrate que la función de la lista se llama recetas_page o index
+
+
+@app.route('/edit_recipe/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_recipe(id):
+    receta = Receta.query.get_or_404(id)
+    if receta.user_id != current_user.id:
+        flash('No tienes permiso.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Cargamos ingredientes para el desplegable
+    all_ingredients = Ingredient.query.order_by(Ingredient.name).all()
 
     if request.method == 'POST':
         # 1. Actualizar datos básicos
-        receta.nombre = request.form.get('nombre')
-        receta.kcal = float(request.form.get('kcal', 0))
-        receta.tipo = request.form.get('tipo')
+        receta.title = request.form.get('title')
+        receta.description = request.form.get('description')
+        receta.steps = request.form.get('steps')
+
+        # 2. Actualizar Ingredientes
+        # Primero borramos los antiguos (es más fácil que comparar uno a uno)
+        # Nota: Al borrar la relación, NO borramos el ingrediente del inventario, solo el vínculo
+        for assoc in receta.ingredients_assoc:
+            db.session.delete(assoc)
         
-        try:
-            # 2. BORRADO INTELIGENTE: Eliminamos ingredientes viejos para poner los nuevos
-            # (Es más fácil que intentar sincronizar IDs uno por uno)
-            Ingrediente.query.filter_by(receta_id=receta.id).delete()
-            
-            # 3. Guardar ingredientes nuevos (Misma lógica que en add_recipe)
-            ingredientes_temp = {}
-            for key, value in request.form.items():
-                match = re.match(r'ingredientes-(\d+)-(\w+)', key)
-                if match:
-                    index = match.group(1)
-                    field = match.group(2)
-                    if index not in ingredientes_temp: ingredientes_temp[index] = {}
-                    ingredientes_temp[index][field] = value
-
-            for index, datos in ingredientes_temp.items():
-                if datos.get('nombre') and datos.get('cantidad'):
-                    nuevo_ing = Ingrediente(
-                        nombre=datos['nombre'],
-                        cantidad=float(datos['cantidad']),
-                        unidad=datos.get('unidad', 'ud'),
-                        receta_id=receta.id # Vinculamos a la receta existente
+        # Ahora creamos los nuevos vínculos desde el JSON
+        ing_data_json = request.form.get('ingredients_data')
+        if ing_data_json:
+            try:
+                items = json.loads(ing_data_json)
+                for item in items:
+                    assoc = RecipeIngredient(
+                        recipe_id=receta.id,
+                        ingredient_id=int(item['id']),
+                        quantity_g=float(item['qty'])
                     )
-                    db.session.add(nuevo_ing)
+                    db.session.add(assoc)
+            except Exception as e:
+                print(f"Error: {e}")
 
-            db.session.commit()
-            flash('Receta actualizada correctamente.', 'success')
-            return redirect(url_for('recetas_page'))
-            
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Error al editar: {e}', 'danger')
+        db.session.commit()
+        flash('Receta actualizada.', 'success')
+        return redirect(url_for('recetas_page')) # O index/dashboard
 
-    # --- LÓGICA GET (Cargar datos en el formulario) ---
-    # Si es GET, rellenamos la lista de ingredientes manualmente para que aparezcan en el HTML
-    if request.method == 'GET':
-        # Limpiamos cualquier campo vacío por defecto
-        while len(form.ingredientes) > 0:
-            form.ingredientes.pop_entry()
-            
-        # Añadimos los ingredientes de la base de datos al formulario
-        for ing in receta.ingredientes:
-            form.ingredientes.append_entry(data={
-                'nombre': ing.nombre,
-                'cantidad': ing.cantidad,
-                'unidad': ing.unidad
-            })
+    # --- MODO GET: PREPARAR DATOS PARA EL FRONTEND ---
+    # Convertimos los ingredientes actuales a un formato que el JavaScript entienda
+    preloaded_ingredients = []
+    for assoc in receta.ingredients_assoc:
+        # Replicamos el cálculo para que el JS no se vuelva loco
+        real_kcal = (assoc.quantity_g / 100) * assoc.ingredient.kcal_100g
+        real_price = (assoc.quantity_g / 1000) * assoc.ingredient.price_kg
+        
+        preloaded_ingredients.append({
+            'id': str(assoc.ingredient_id), # ID como string para que coincida con el value del select
+            'name': assoc.ingredient.name,
+            'qty': assoc.quantity_g,
+            'realKcal': real_kcal,
+            'realPrice': real_price
+        })
 
-    # Reutilizamos la plantilla add_recipe.html pero pasamos una variable extra
-    return render_template('add_recipe.html', form=form, is_edit=True, receta_id=receta.id)
+    # Convertimos a JSON string para inyectarlo en el HTML
+    preloaded_json = json.dumps(preloaded_ingredients)
+
+    # Reutilizamos la plantilla create_recipe.html pero pasándole datos extra
+    return render_template('create_recipe.html', 
+                           ingredients=all_ingredients, 
+                           receta_editar=receta, # Objeto receta
+                           preloaded_json=preloaded_json) # JSON para JS
+
 
 # --- EJECUCIÓN ---
 if __name__ == '__main__':

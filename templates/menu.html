@@ -3,240 +3,519 @@
 {% block title %}Planificador Semanal{% endblock %}
 
 {% block content %}
-<div class="header-section" style="margin-bottom: 30px;">
-    <h1>Planificador Semanal</h1>
-    <p style="color: var(--text-muted);">Organiza tus comidas. El sistema calculará la compra automáticamente.</p>
-</div>
-
-<form method="POST" id="menuForm">
-    <div class="bento-grid">
-        
-        <div class="bento-card" style="grid-column: span 3; padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.8);">
-            
-            <div style="padding: 20px 30px; background: rgba(255,255,255,0.5); border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;">
-                <div class="widget-title" style="margin: 0;"><i class="fas fa-calendar-alt"></i> &nbsp;Tu Semana</div>
-                <button type="submit" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem;">
-                    <i class="fas fa-save"></i> Guardar Cambios
-                </button>
-            </div>
-
-            <div style="padding: 30px; overflow-x: auto;">
-                <div style="min-width: 950px;">
-                    <div class="menu-header-row">
-                        <div style="width: 80px;"></div>
-                        <div class="meal-header">☕ Desayuno</div>
-                        <div class="meal-header">🍲 Comida</div>
-                        <div class="meal-header">🥪 Merienda</div>
-                        <div class="meal-header">🌙 Cena</div>
-                    </div>
-
-                    {% for dia_menu in menu %}
-                    <div class="menu-day-row">
-                        <div class="day-badge">{{ dia_menu.dia[:3]|upper }}</div>
-                        
-                        {% for tipo in ['Desayuno', 'Comida', 'Merienda', 'Cena'] %}
-                        <div class="meal-cell" id="container_{{ dia_menu.dia }}_{{ tipo }}">
-                            
-                            {% for receta_sel in dia_menu.get_recetas(tipo) %}
-                            <div class="select-wrapper">
-                                <select name="{{ dia_menu.dia }}_{{ tipo }}" class="modern-select filled">
-                                    <option value="">(Borrar plato)</option>
-                                    {% for r in recetas %}
-                                        <option value="{{ r.id }}" {% if r.id == receta_sel.id %}selected{% endif %}>{{ r.nombre }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            {% endfor %}
-
-                            <div class="select-wrapper">
-                                <select name="{{ dia_menu.dia }}_{{ tipo }}" class="modern-select placeholder">
-                                    <option value="" selected>- Añadir plato -</option>
-                                    {% for r in recetas %}
-                                        <option value="{{ r.id }}">{{ r.nombre }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <div class="bento-card" style="height: fit-content; position: sticky; top: 20px;">
-            <div class="widget-title"><i class="fas fa-shopping-basket"></i> &nbsp;Preview Compra</div>
-            
-            {% if lista_compra %}
-                <div style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
-                    <ul class="clean-list">
-                        {% for item in lista_compra %}
-                        <li class="shopping-item">
-                            <span style="font-weight: 500; font-size: 0.9rem;">{{ item.nombre }}</span>
-                            <span class="shopping-badge">{{ item.cantidad|round(1) if item.cantidad % 1 else item.cantidad|int }} {{ item.unidad }}</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                <div style="margin-top: 20px; text-align: center; font-size: 0.8rem; color: var(--text-muted); border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 15px;">
-                    Se actualizará al pulsar "Guardar"
-                </div>
-            {% else %}
-                <div style="text-align:center; color: var(--text-muted); padding: 40px 20px;">
-                    <i class="fas fa-carrot" style="font-size: 2rem; opacity: 0.2; margin-bottom: 10px;"></i>
-                    <p style="font-size: 0.9rem;">Planifica tu semana para generar la lista automáticamente.</p>
-                </div>
-            {% endif %}
-        </div>
-
-    </div>
-</form>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Delegación de eventos para detectar cambios en cualquier select
-        document.body.addEventListener('change', function(e) {
-            if (e.target.classList.contains('modern-select')) {
-                const select = e.target;
-                const parent = select.closest('.meal-cell');
-                
-                // Lógica: Si cambias el ÚLTIMO select y le pones valor, creamos uno nuevo vacío debajo
-                if (select.value !== "" && select === parent.lastElementChild.querySelector('select')) {
-                    // Cambiamos estilo del actual para indicar que está "lleno"
-                    select.classList.remove('placeholder');
-                    select.classList.add('filled');
-                    
-                    // Añadimos el nuevo hueco
-                    addSelect(parent);
-                }
-            }
-        });
-    });
-
-    function addSelect(container) {
-        // Clonar el último wrapper
-        const lastWrapper = container.lastElementChild;
-        const newWrapper = lastWrapper.cloneNode(true);
-        const newSelect = newWrapper.querySelector('select');
-        
-        // Resetear el clon a estado "vacío"
-        newSelect.value = "";
-        newSelect.classList.remove('filled');
-        newSelect.classList.add('placeholder');
-        
-        // Añadir animación suave
-        newWrapper.style.opacity = "0";
-        newWrapper.style.transform = "translateY(-10px)";
-        newWrapper.style.transition = "all 0.3s ease";
-        
-        container.appendChild(newWrapper);
-        
-        // Ejecutar animación
-        requestAnimationFrame(() => {
-            newWrapper.style.opacity = "1";
-            newWrapper.style.transform = "translateY(0)";
-        });
-    }
-</script>
-
 <style>
-    /* Estilos Específicos del Menú */
-    .menu-header-row {
-        display: grid;
-        grid-template-columns: 80px 1fr 1fr 1fr 1fr;
-        gap: 15px;
-        margin-bottom: 15px;
-        padding-left: 15px;
+    :root {
+        --bg-color: #F3F4F6;
+        --card-bg: #ffffff;
+        --primary: #6366f1; /* Indigo */
+        --secondary: #f59e0b; /* Amber */
+        --text-main: #1f2937;
+        --text-muted: #9ca3af;
+        --border-radius: 12px;
     }
+
+    /* --- LAYOUT GENERAL --- */
+    body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; }
     
-    .meal-header {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        font-weight: 700;
-        color: var(--text-muted);
-        letter-spacing: 1px;
-        text-align: center;
+    .main-layout { display: block; width: 100%; max-width: 1400px; margin: 0 auto; padding-top: 10px; }
+
+    /* --- BARRA UNIFICADA (NUEVO HEADER) --- */
+    .unified-toolbar {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr; /* Izq - Centro - Der */
+        align-items: center;
+        background: white;
+        padding: 10px 20px;
+        border-radius: 16px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        position: sticky; /* Se queda fija al hacer scroll */
+        top: 10px;
+        z-index: 900;
+    }
+
+    /* Sección Izquierda */
+    .toolbar-left { display: flex; align-items: center; gap: 15px; }
+    .app-logo-text { font-size: 1.2rem; font-weight: 800; color: #111827; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
+    
+    .status-badge {
+        font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 20px;
+        background: #ecfdf5; color: #059669; display: inline-flex; align-items: center; gap: 5px;
+    }
+
+    /* Sección Centro (Navegador) */
+    .toolbar-center { display: flex; justify-content: center; }
+    .week-navigator-compact {
+        display: flex; align-items: center; gap: 10px;
+        background: #f3f4f6; padding: 4px; border-radius: 10px;
+    }
+    .nav-btn {
+        width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+        background: white; border-radius: 8px; color: var(--text-main); text-decoration: none; 
+        transition: 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .nav-btn:hover { transform: scale(1.05); color: var(--primary); }
+    
+    .week-display { 
+        text-align: center; min-width: 130px; display: flex; flex-direction: column; line-height: 1.1; 
+    }
+    .week-label { font-size: 0.65rem; text-transform: uppercase; color: #9ca3af; font-weight: 700; letter-spacing: 0.5px; }
+    .week-value { font-size: 0.9rem; font-weight: 700; color: #374151; }
+
+    /* Sección Derecha (Botones) */
+    .toolbar-right { display: flex; justify-content: flex-end; gap: 10px; }
+
+    .btn-primary-save {
+        background: #111827; color: white; border: none; padding: 10px 20px;
+        border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;
+        transition: transform 0.1s; font-size: 0.9rem;
+    }
+    .btn-primary-save:active { transform: scale(0.98); }
+
+    .btn-secondary-outline {
+        background: white; border: 1px solid #d1d5db; color: #374151;
+        padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer;
+        display: flex; align-items: center; gap: 8px; transition: 0.2s; font-size: 0.9rem;
+    }
+    .btn-secondary-outline:hover { background: #f3f4f6; border-color: #9ca3af; }
+
+
+    /* --- TABLA / CARDS DEL MENU --- */
+    .menu-container { padding-bottom: 50px; }
+
+    .menu-header-row {
+        display: grid; grid-template-columns: 60px repeat(4, 1fr) 80px 80px; gap: 15px;
+        padding: 0 20px 10px 20px; font-size: 0.75rem; font-weight: 700; 
+        text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em; text-align: center;
     }
 
     .menu-day-row {
-        display: grid;
-        grid-template-columns: 80px 1fr 1fr 1fr 1fr;
-        gap: 15px;
-        padding: 20px 15px;
-        border-bottom: 1px dashed rgba(0,0,0,0.1);
-        align-items: start;
-        transition: background 0.2s;
+        background: var(--card-bg);
+        border-radius: var(--border-radius);
+        margin-bottom: 12px;
+        padding: 15px 20px;
+        display: grid; grid-template-columns: 60px repeat(4, 1fr) 80px 80px; gap: 15px;
+        align-items: flex-start;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: box-shadow 0.2s;
     }
-    .menu-day-row:hover {
-        background: rgba(255,255,255,0.3);
-    }
-    .menu-day-row:last-child { border-bottom: none; }
+    .menu-day-row:hover { box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
 
+    /* Columna del Día */
+    .day-column { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 60px; }
     .day-badge {
-        font-weight: 800;
-        color: var(--text-main);
-        font-size: 0.85rem;
-        padding-top: 8px;
-        opacity: 0.7;
+        background: #1f2937; color: white; width: 50px; height: 50px;
+        border-radius: 12px; display: flex; flex-direction: column; 
+        align-items: center; justify-content: center;
+        font-weight: 800; font-size: 0.9rem; margin-bottom: 4px; line-height: 1.1;
     }
 
+    /* Celda de Comida */
     .meal-cell {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
+        min-height: 80px; display: flex; flex-direction: column; gap: 8px; position: relative;
+        padding: 5px; border-radius: 8px; transition: background 0.2s;
     }
+    .meal-cell:hover { background: #f9fafb; }
 
-    .select-wrapper {
-        position: relative;
+    /* --- CHIPS (ITEMS DENTRO DE LA CELDA) --- */
+    .items-container { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+
+    .menu-item-chip {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 6px 10px; border-radius: 6px; font-size: 0.8rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: 0.2s;
+        border-left: 3px solid #ccc; background: white;
     }
+    .menu-item-chip.recipe { border-left-color: var(--primary); }
+    .menu-item-chip.ingredient { border-left-color: var(--secondary); }
 
-    .modern-select {
-        width: 100%;
-        padding: 8px 10px;
-        border-radius: 8px;
-        border: 1px solid rgba(0,0,0,0.1);
-        background-color: rgba(255,255,255,0.5);
-        color: var(--text-main);
-        font-family: 'Inter', sans-serif;
-        font-size: 0.85rem;
-        cursor: pointer;
+    .chip-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 140px; font-weight: 500; }
+    .chip-info { font-size: 0.7rem; color: #9ca3af; margin-left: 5px; }
+
+    .btn-remove-chip {
+        background: none; border: none; color: #ef4444; cursor: pointer;
+        font-size: 0.9rem; padding: 0 0 0 8px; opacity: 0.6;
+    }
+    .btn-remove-chip:hover { opacity: 1; }
+
+    /* Botón Circular (+) */
+    .btn-add-circle {
+        width: 28px; height: 28px; border-radius: 50%;
+        background: white; border: 1px dashed #d1d5db; color: #9ca3af;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; margin-top: 5px; align-self: center;
         transition: all 0.2s;
-        appearance: none; /* Quita flecha nativa */
-        /* Flecha custom pequeña */
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-        background-repeat: no-repeat;
-        background-position: right 0.5rem center;
-        background-size: 1em;
-        padding-right: 25px;
+    }
+    .btn-add-circle:hover { border-color: var(--primary); color: var(--primary); transform: scale(1.1); }
+
+    /* Stats */
+    .stat-box {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;
+        border-radius: 8px; font-size: 0.9rem; font-weight: 700;
+    }
+    .stat-box.kcal { color: #d97706; background: #fffbeb; }
+    .stat-box.price { color: #059669; background: #ecfdf5; }
+
+    /* --- MODALES --- */
+    .modal-overlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.5); z-index: 1000;
+        justify-content: center; align-items: center; backdrop-filter: blur(4px);
+    }
+    .modal-content {
+        background: white; width: 90%; max-width: 500px; border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column;
+        max-height: 85vh; animation: modalPop 0.3s ease-out;
+    }
+    @keyframes modalPop { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    .modal-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 1.2rem; font-weight: 700; color: #1f2937; }
+    .close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #9ca3af; }
+    .close-btn:hover { color: #ef4444; }
+    .modal-body { padding: 20px; overflow-y: auto; }
+
+    /* Toggle Switch del Modal */
+    .toggle-container { display: flex; background: #f3f4f6; padding: 4px; border-radius: 8px; margin-bottom: 20px; }
+    .toggle-btn {
+        flex: 1; padding: 8px; text-align: center; cursor: pointer; border-radius: 6px; 
+        font-size: 0.9rem; font-weight: 600; color: #6b7280; transition: 0.2s;
+    }
+    .toggle-btn.active { background: white; color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    .modern-select, .modern-input-small {
+        width: 100%; padding: 10px; font-size: 0.9rem; border: 1px solid #e5e7eb; border-radius: 8px; 
+        background: #fff; margin-bottom: 10px;
     }
 
-    /* Diferenciar selects llenos de vacíos visualmente */
-    .modern-select.placeholder {
-        color: var(--text-muted);
-        border-style: dashed;
-        opacity: 0.8;
-    }
-    .modern-select.filled {
-        background-color: white;
-        border-color: rgba(0,0,0,0.15);
-        font-weight: 500;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    }
+    /* Estilos lista compra */
+    .clean-list { list-style: none; padding: 0; margin: 0; }
+    .shopping-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+    .item-badge { background: #1f2937; color: white; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
 
-    .modern-select:focus {
-        border-color: var(--primary);
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    }
-    
-    .shopping-badge {
-        background: var(--text-main);
-        color: white;
-        padding: 2px 8px;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-weight: 700;
+    /* Responsive */
+    .mobile-only { display: none; }
+    @media (max-width: 1024px) {
+        .unified-toolbar { grid-template-columns: 1fr; gap: 10px; position: relative; top: 0; }
+        .toolbar-left { justify-content: center; }
+        .toolbar-center { order: 2; width: 100%; } 
+        .week-navigator-compact { width: 100%; justify-content: space-between; }
+        .toolbar-right { order: 3; justify-content: center; width: 100%; }
+        
+        .menu-header-row { display: none; }
+        .menu-day-row { grid-template-columns: 1fr; gap: 0; padding: 10px; }
+        .day-column { flex-direction: row; justify-content: flex-start; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee; margin-bottom: 10px; width: 100%; }
+        .meal-cell { padding-bottom: 15px; border-bottom: 1px dashed #eee; margin-bottom: 10px; }
+        .mobile-only { display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; }
+        .stat-box { flex-direction: row; justify-content: space-between; width: 100%; padding: 10px; background: #f9fafb; margin-top: 5px; }
+        .mobile-hide { display: none; }
     }
 </style>
+
+<form method="POST" id="menuForm">
+    <div class="main-layout">
+        
+        <div class="unified-toolbar">
+            
+            <div class="toolbar-left">
+               
+                {% if current_week == real_current_week %} 
+                    <div class="status-badge mobile-hide">
+                        <i class="fas fa-circle" style="font-size: 6px;"></i> Semana Actual
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="toolbar-center">
+                <div class="week-navigator-compact">
+                    <a href="{{ url_for('menu_semanal_page', week_str=prev_week) }}" class="nav-btn">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    <div class="week-display">
+                        <span class="week-label">Semana del</span>
+                        <span class="week-value">{{ current_week.strftime('%d %b %Y') }}</span>
+                    </div>
+                    <a href="{{ url_for('menu_semanal_page', week_str=next_week) }}" class="nav-btn">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="toolbar-right">
+                <button type="button" class="btn-secondary-outline" onclick="openModal()" title="Ver Lista de Compra">
+                    <i class="fas fa-shopping-basket"></i> 
+                    <span class="desktop-only">Lista</span>
+                </button>
+                <button type="submit" class="btn-primary-save" title="Guardar cambios">
+                    <i class="fas fa-save"></i> 
+                    <span class="desktop-only">Guardar</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="menu-container">
+            
+            <div class="menu-content">
+                
+                <div class="menu-header-row desktop-only">
+                    <div></div> 
+                    <div>DESAYUNO</div>
+                    <div>COMIDA</div>
+                    <div>MERIENDA</div>
+                    <div>CENA</div>
+                    <div style="color: #d97706;">KCAL</div>
+                    <div style="color: #059669;">PRECIO</div>
+                </div>
+
+                {% for dia_menu in menu %}
+                <div class="menu-day-row">
+                    <div class="day-column">
+                        <div class="day-badge">
+                            <span>{{ dia_menu.dia[:3]|upper }}</span>
+                            <span style="font-size: 0.65rem; opacity: 0.8; font-weight: 400;">{{ dia_menu.fecha_str }}</span>
+                        </div>
+                    </div>
+                    
+                    {% for tipo in ['Desayuno', 'Comida', 'Merienda', 'Cena'] %}
+                    <div class="meal-cell" id="cell_{{ dia_menu.dia }}_{{ tipo }}">
+                        <span class="mobile-only">{{ tipo }}</span>
+                        
+                        <div class="items-container">
+                            {% for sel in dia_menu.get_selections(tipo) %}
+                                {% if sel.receta %}
+                                    <div class="menu-item-chip recipe">
+                                        <span class="chip-text">{{ sel.receta.title }}</span>
+                                        <input type="hidden" name="{{ dia_menu.dia }}_{{ tipo }}_receta" value="{{ sel.receta.id }}">
+                                        <button type="button" class="btn-remove-chip" onclick="this.closest('.menu-item-chip').remove()">×</button>
+                                    </div>
+
+                                {% elif sel.ingredient %}
+                                    <div class="menu-item-chip ingredient">
+                                        <div style="display: flex; flex-direction: column; width: 100%;">
+                                            <span class="chip-text">{{ sel.ingredient.name }}</span>
+                                            <span class="chip-info">{{ sel.quantity|int }}g</span>
+                                        </div>
+                                        <input type="hidden" name="{{ dia_menu.dia }}_{{ tipo }}_ing_id" value="{{ sel.ingredient.id }}">
+                                        <input type="hidden" name="{{ dia_menu.dia }}_{{ tipo }}_ing_qty" value="{{ sel.quantity }}">
+                                        <button type="button" class="btn-remove-chip" onclick="this.closest('.menu-item-chip').remove()">×</button>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+
+                        <div class="btn-add-circle" onclick="openAddItemModal('{{ dia_menu.dia }}', '{{ tipo }}')" title="Añadir comida">
+                            <i class="fas fa-plus"></i>
+                        </div>
+
+                    </div>
+                    {% endfor %}
+
+                    <div class="stat-box kcal">
+                        {{ dia_menu.daily_stats.kcal }}
+                    </div>
+                    <div class="stat-box price">
+                        {{ "%.2f"|format(dia_menu.daily_stats.price) }}€
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</form>
+
+<div id="shoppingModal" class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-shopping-basket"></i> Lista de Compra</div>
+            <button type="button" class="close-btn" onclick="closeModalDirect()">&times;</button>
+        </div>
+        <div class="modal-body">
+            {% if lista_compra %}
+                <div style="background: #FFFBEB; color: #D97706; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem;">
+                    <i class="fas fa-info-circle"></i> Estos ingredientes se calculan según el menú guardado.
+                </div>
+                <ul class="clean-list">
+                    {% for item in lista_compra %}
+                    <li class="shopping-item">
+                        <span class="item-name" style="font-weight: 500;">{{ item.nombre }}</span>
+                        <span class="item-badge">{{ item.cantidad|round(1) if item.cantidad % 1 else item.cantidad|int }} {{ item.unidad }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="empty-shopping" style="text-align: center; padding: 40px 0; color: #9ca3af;">
+                    <i class="fas fa-carrot" style="font-size: 3rem; margin-bottom: 10px; opacity: 0.3;"></i>
+                    <p>Guarda el menú para generar la lista.</p>
+                </div>
+            {% endif %}
+        </div>
+        <div style="padding: 15px 20px; border-top: 1px solid #eee; text-align: right;">
+            <button type="button" class="btn-secondary-outline" onclick="closeModalDirect()" style="display: inline-flex;">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div id="addItemModal" class="modal-overlay" onclick="closeAddItemModal(event)">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <div class="modal-title" id="modalTitle">Añadir al Menú</div>
+            <button type="button" class="close-btn" onclick="closeAddItemModalDirect()">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="toggle-container">
+                <div class="toggle-btn active" id="tabRecipe" onclick="switchTab('recipe')">Receta</div>
+                <div class="toggle-btn" id="tabIngredient" onclick="switchTab('ingredient')">Ingrediente</div>
+            </div>
+
+            <div id="blockRecipe">
+                <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; display: block;">Selecciona Receta:</label>
+                <select id="modalRecipeSelect" class="modern-select">
+                    <option value="">Buscar receta...</option>
+                    {% for r in recetas %}
+                        <option value="{{ r.id }}" data-name="{{ r.title }}">{{ r.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="blockIngredient" style="display: none;">
+                <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; display: block;">Selecciona Ingrediente:</label>
+                <select id="modalIngredientSelect" class="modern-select" style="margin-bottom: 10px;">
+                    <option value="">Buscar ingrediente...</option>
+                    {% for ing in all_ingredients %}
+                        <option value="{{ ing.id }}" data-name="{{ ing.name }}">{{ ing.name }}</option>
+                    {% endfor %}
+                </select>
+                
+                <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; display: block;">Cantidad (gramos):</label>
+                <input type="number" id="modalIngredientQty" class="modern-input-small" placeholder="Ej: 100" style="text-align: left;">
+            </div>
+
+            <button type="button" class="btn-primary-save" style="width: 100%; justify-content: center; margin-top: 20px;" onclick="confirmAddItem()">
+                Añadir
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Variables globales para contexto
+    let currentDay = null;
+    let currentType = null;
+    let currentMode = 'recipe'; 
+
+    // --- MODAL DE LISTA DE COMPRA ---
+    function openModal() {
+        document.getElementById('shoppingModal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+    function closeModalDirect() {
+        document.getElementById('shoppingModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+    function closeModal(event) {
+        if (event.target === document.getElementById('shoppingModal')) closeModalDirect();
+    }
+
+    // --- MODAL DE AÑADIR ITEM ---
+    function openAddItemModal(dia, tipo) {
+        currentDay = dia;
+        currentType = tipo;
+        
+        // Reset inputs
+        document.getElementById('modalRecipeSelect').value = "";
+        document.getElementById('modalIngredientSelect').value = "";
+        document.getElementById('modalIngredientQty').value = "";
+        
+        document.getElementById('modalTitle').innerText = `Añadir a ${tipo} (${dia})`;
+        document.getElementById('addItemModal').style.display = 'flex';
+        switchTab('recipe'); 
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeAddItemModalDirect() {
+        document.getElementById('addItemModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+    
+    function closeAddItemModal(event) {
+        if (event.target === document.getElementById('addItemModal')) closeAddItemModalDirect();
+    }
+
+    // --- PESTAÑAS (RECETA vs INGREDIENTE) ---
+    function switchTab(mode) {
+        currentMode = mode;
+        const btnRec = document.getElementById('tabRecipe');
+        const btnIng = document.getElementById('tabIngredient');
+        const blkRec = document.getElementById('blockRecipe');
+        const blkIng = document.getElementById('blockIngredient');
+
+        if (mode === 'recipe') {
+            btnRec.classList.add('active');
+            btnIng.classList.remove('active');
+            blkRec.style.display = 'block';
+            blkIng.style.display = 'none';
+        } else {
+            btnIng.classList.add('active');
+            btnRec.classList.remove('active');
+            blkIng.style.display = 'block';
+            blkRec.style.display = 'none';
+        }
+    }
+
+    // --- LÓGICA CORE: INYECTAR HTML ---
+    function confirmAddItem() {
+        const targetCellId = `cell_${currentDay}_${currentType}`;
+        const container = document.querySelector(`#${targetCellId} .items-container`);
+        
+        if (currentMode === 'recipe') {
+            const select = document.getElementById('modalRecipeSelect');
+            const id = select.value;
+            const name = select.options[select.selectedIndex]?.dataset.name;
+            
+            if (!id) return alert("Selecciona una receta");
+
+            const chipHtml = `
+                <div class="menu-item-chip recipe">
+                    <span class="chip-text">${name}</span>
+                    <input type="hidden" name="${currentDay}_${currentType}_receta" value="${id}">
+                    <button type="button" class="btn-remove-chip" onclick="this.closest('.menu-item-chip').remove()">×</button>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', chipHtml);
+
+        } else {
+            const select = document.getElementById('modalIngredientSelect');
+            const qtyInput = document.getElementById('modalIngredientQty');
+            const id = select.value;
+            const name = select.options[select.selectedIndex]?.dataset.name;
+            const qty = qtyInput.value || 0;
+
+            if (!id) return alert("Selecciona un ingrediente");
+
+            const chipHtml = `
+                <div class="menu-item-chip ingredient">
+                     <div style="display: flex; flex-direction: column; width: 100%;">
+                        <span class="chip-text">${name}</span>
+                        <span class="chip-info">${qty}g</span>
+                    </div>
+                    <input type="hidden" name="${currentDay}_${currentType}_ing_id" value="${id}">
+                    <input type="hidden" name="${currentDay}_${currentType}_ing_qty" value="${qty}">
+                    <button type="button" class="btn-remove-chip" onclick="this.closest('.menu-item-chip').remove()">×</button>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', chipHtml);
+        }
+
+        closeAddItemModalDirect();
+    }
+
+    // Cerrar con ESC
+    document.addEventListener('keydown', function(event) {
+        if (event.key === "Escape") {
+            closeModalDirect();
+            closeAddItemModalDirect();
+        }
+    });
+</script>
 {% endblock %}

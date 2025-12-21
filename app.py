@@ -295,14 +295,14 @@ def menu_semanal_page(week_str=None):
                 # A. Buscar o Crear el registro del Día (padre)
                 menu_dia = MenuSemanal.query.filter_by(
                     user_id=current_user.id,
-                    week_start=current_week.strftime('%Y-%m-%d'),
+                    week_start=current_week.strftime('%Y-%m-%d'), # <--- ESTO ES STRING (ERROR)
                     dia=dia
                 ).first()
 
                 if not menu_dia:
                     menu_dia = MenuSemanal(
                         user_id=current_user.id,
-                        week_start=current_week.strftime('%Y-%m-%d'),
+                        week_start=current_week.strftime('%Y-%m-%d'), # <--- ESTO ES STRING (ERROR CRÍTICO)
                         dia=dia
                     )
                     db.session.add(menu_dia)

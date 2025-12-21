@@ -295,18 +295,19 @@ def menu_semanal_page(week_str=None):
                 # A. Buscar o Crear el registro del Día (padre)
                 menu_dia = MenuSemanal.query.filter_by(
                     user_id=current_user.id,
-                    week_start=current_week.strftime('%Y-%m-%d'), # <--- ESTO ES STRING (ERROR)
+                    week_start=current_week,  # <--- CORREGIDO: Objeto date puro
                     dia=dia
                 ).first()
 
+                # 2. CREAR (Insert): Aquí es donde fallaba tu error INSERT
                 if not menu_dia:
                     menu_dia = MenuSemanal(
                         user_id=current_user.id,
-                        week_start=current_week.strftime('%Y-%m-%d'), # <--- ESTO ES STRING (ERROR CRÍTICO)
+                        week_start=current_week, # <--- CORREGIDO: Objeto date puro
                         dia=dia
                     )
                     db.session.add(menu_dia)
-                    db.session.commit() # Necesitamos el ID para las selecciones
+                    db.session.commit()
 
                 # B. Limpiar selecciones previas (CORREGIDO: usa menu_id)
                 MenuSelection.query.filter_by(menu_id=menu_dia.id).delete()

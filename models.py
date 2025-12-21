@@ -216,3 +216,18 @@ class RoutineExercise(db.Model):
 # class WorkoutSession(...):
 #     ... campos existentes ...
 #     routine_used_id = db.Column(db.Integer, db.ForeignKey('routine.id'), nullable=True)
+
+# --- MODELO DE MEDIDAS CORPORALES ---
+class BodyMeasurement(db.Model):
+    __tablename__ = 'body_measurement'
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    weight = db.Column(db.Float) # Peso (kg)
+    biceps = db.Column(db.Float) # cm
+    chest = db.Column(db.Float)  # Pecho (cm)
+    hips = db.Column(db.Float)   # Cadera (cm)
+    thigh = db.Column(db.Float)  # Muslo (cm)
+    calf = db.Column(db.Float)   # Gemelo (cm)
+    
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)

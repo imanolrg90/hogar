@@ -13,6 +13,8 @@ from models import Exercise, WorkoutSession, WorkoutSet # Añadir a la lista exi
 from forms import ExerciseForm # Añadir a la lista existente
 from models import Routine, RoutineExercise # Añadir a la lista
 from forms import RoutineForm # Añadir a la lista
+from models import BodyMeasurement # Añadir
+from forms import BodyMeasurementForm # Añadir
 # --- Configuración Inicial ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'clave_secreta_pro_home_os' # Cambia esto en producción
@@ -782,6 +784,56 @@ def create_routine():
         return redirect(url_for('gym_routines'))
 
     return render_template('gym/create_routine.html', form=form, exercises=all_exercises)
+
+@app.route('/gym/measurements', methods=['GET', 'POST'])
+@login_required
+def gym_measurements():
+    form = BodyMeasurementForm()
+    
+    # --- GUARDAR DATOS (POST) ---
+    if form.validate_on_submit():
+        # Verificamos que al menos haya un dato
+        if any([form.weight.data, form.biceps.data, form.chest.data, 
+                form.hips.data, form.thigh.data, form.calf.data]):
+            
+            new_entry = BodyMeasurement(
+                user_id=current_user.id,
+                date=datetime.now(),
+                weight=form.weight.data,
+                biceps=form.biceps.data,
+                chest=form.chest.data,
+                hips=form.hips.data,
+                thigh=form.thigh.data,
+                calf=form.calf.data
+            )
+            db.session.add(new_entry)
+            db.session.commit()
+            flash('Medidas registradas correctamente.', 'success')
+            return redirect(url_for('gym_measurements'))
+        else:
+            flash('Introduce al menos un valor.', 'warning')
+
+    # --- PREPARAR DATOS PARA LA GRÁFICA (GET) ---
+    # Obtenemos historial ordenado por fecha
+    history = BodyMeasurement.query.filter_by(user_id=current_user.id).order_by(BodyMeasurement.date.asc()).all()
+    
+    # Creamos un diccionario con listas para Chart.js
+    # Chart.js ignora los 'null', así que si un día no te mediste algo, el gráfico saltará ese punto
+    chart_data = {
+        'labels': [m.date.strftime('%d/%m/%Y') for m in history],
+        'weight': [m.weight for m in history],
+        'biceps': [m.biceps for m in history],
+        'chest':  [m.chest for m in history],
+        'hips':   [m.hips for m in history],
+        'thigh':  [m.thigh for m in history],
+        'calf':   [m.calf for m in history]
+    }
+
+    # Invertimos historial para la tabla (lo más nuevo primero)
+    return render_template('gym/measurements.html', 
+                           form=form, 
+                           history=reversed(history),
+                           chart_data=json.dumps(chart_data)) # Pasamos JSON al template
 
 # --- EJECUCIÓN ---
 if __name__ == '__main__':

@@ -51,3 +51,12 @@ class RoutineForm(FlaskForm):
     name = StringField('Nombre de la Rutina', validators=[DataRequired()])
     description = StringField('Descripción')
     submit = SubmitField('Guardar Rutina')
+
+class BodyMeasurementForm(FlaskForm):
+    weight = FloatField('Peso (kg)', validators=[NumberRange(min=0)])
+    biceps = FloatField('Bíceps (cm)', validators=[NumberRange(min=0)])
+    chest = FloatField('Pecho (cm)', validators=[NumberRange(min=0)])
+    hips = FloatField('Cadera (cm)', validators=[NumberRange(min=0)])
+    thigh = FloatField('Muslo (cm)', validators=[NumberRange(min=0)])
+    calf = FloatField('Gemelo (cm)', validators=[NumberRange(min=0)])
+    submit = SubmitField('Registrar')

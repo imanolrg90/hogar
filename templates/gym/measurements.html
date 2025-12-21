@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Medidas Corporales{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="header-section">
+    <h1>Seguimiento Corporal</h1>
+    <p style="color: var(--text-muted);">Registra tu evolución física.</p>
+</div>
+
+<div class="bento-grid">
+    
+    <div class="bento-card" style="grid-column: 1 / -1; min-height: 600px; padding: 30px;">
+        
+        <div style="background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 30px;">
+            <div class="widget-title" style="margin-bottom: 15px; color: var(--text-main);">
+                <i class="fas fa-plus-circle"></i> Nuevo Registro (Hoy)
+            </div>
+            
+            <form method="POST" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                {{ form.hidden_tag() }}
+                
+                <div style="flex: 1; min-width: 100px;">
+                    <label style="font-size:0.8rem; font-weight:700; color:#64748B; margin-bottom:5px; display:block;">Peso (kg)</label>
+                    {{ form.weight(class="form-control", placeholder="0.0", style="width:100%; padding:10px; border:1px solid #CBD5E1; border-radius:8px;") }}
+                </div>
+
+                <div style="flex: 1; min-width: 100px;">
+                    <label style="font-size:0.8rem; font-weight:700; color:#64748B; margin-bottom:5px; display:block;">Pecho</label>
+                    {{ form.chest(class="form-control", placeholder="cm", style="width:100%; padding:10px; border:1px solid #CBD5E1; border-radius:8px;") }}
+                </div>
+
+                <div style="flex: 1; min-width: 100px;">
+                    <label style="font-size:0.8rem; font-weight:700; color:#64748B; margin-bottom:5px; display:block;">Bíceps</label>
+                    {{ form.biceps(class="form-control", placeholder="cm", style="width:100%; padding:10px; border:1px solid #CBD5E1; border-radius:8px;") }}
+                </div>
+
+                <div style="flex: 1; min-width: 100px;">
+                    <label style="font-size:0.8rem; font-weight:700; color:#64748B; margin-bottom:5px; display:block;">Cadera</label>
+                    {{ form.hips(class="form-control", placeholder="cm", style="width:100%; padding:10px; border:1px solid #CBD5E1; border-radius:8px;") }}
+                </div>
+
+                <div style="flex: 1; min-width: 100px;">
+                    <label style="font-size:0.8rem; font-weight:700; color:#64748B; margin-bottom:5px; display:block;">Muslo</label>
+                    {{ form.thigh(class="form-control", placeholder="cm", style="width:100%; padding:10px; border:1px solid #CBD5E1; border-radius:8px;") }}
+                </div>
+
+                <div style="flex: 1; min-width: 100px;">
+                    <label style="font-size:0.8rem; font-weight:700; color:#64748B; margin-bottom:5px; display:block;">Gemelo</label>
+                    {{ form.calf(class="form-control", placeholder="cm", style="width:100%; padding:10px; border:1px solid #CBD5E1; border-radius:8px;") }}
+                </div>
+                
+                <button type="submit" class="action-key dark" style="height: 42px; padding: 0 25px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+            </form>
+        </div>
+
+        <div style="margin-bottom: 40px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                <h3 style="margin: 0; font-size: 1.2rem;">Evolución</h3>
+                
+                <div class="chart-toggles" style="display: flex; gap: 5px; background: #F1F5F9; padding: 5px; border-radius: 10px; overflow-x: auto;">
+                    <button onclick="updateChart('weight', 'Peso (kg)', '#4F46E5')" class="toggle-btn active">Peso</button>
+                    <button onclick="updateChart('chest', 'Pecho (cm)', '#EC4899')" class="toggle-btn">Pecho</button>
+                    <button onclick="updateChart('biceps', 'Bíceps (cm)', '#8B5CF6')" class="toggle-btn">Bíceps</button>
+                    <button onclick="updateChart('hips', 'Cadera (cm)', '#F59E0B')" class="toggle-btn">Cadera</button>
+                    <button onclick="updateChart('thigh', 'Muslo (cm)', '#10B981')" class="toggle-btn">Muslo</button>
+                    <button onclick="updateChart('calf', 'Gemelo (cm)', '#3B82F6')" class="toggle-btn">Gemelo</button>
+                </div>
+            </div>
+            
+            <div style="height: 400px; position: relative; width: 100%;">
+                <canvas id="bodyChart"></canvas>
+            </div>
+        </div>
+
+        <div class="widget-title" style="border-top: 1px solid #eee; padding-top: 20px; margin-top: 20px;">
+            <i class="fas fa-history"></i> Historial Completo
+        </div>
+        
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
+                <thead>
+                    <tr style="background: #F8FAFC; color: var(--text-muted); text-align: left; border-bottom: 2px solid #E2E8F0;">
+                        <th style="padding: 15px; border-radius: 8px 0 0 8px;">Fecha</th>
+                        <th style="padding: 15px;">Peso</th>
+                        <th style="padding: 15px;">Pecho</th>
+                        <th style="padding: 15px;">Bíceps</th>
+                        <th style="padding: 15px;">Cadera</th>
+                        <th style="padding: 15px;">Muslo</th>
+                        <th style="padding: 15px; border-radius: 0 8px 8px 0;">Gemelo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in history %}
+                    <tr style="border-bottom: 1px solid #F1F5F9; transition: background 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='transparent'">
+                        <td style="padding: 15px; font-weight: 600; color: var(--text-main);">{{ item.date.strftime('%d/%m/%Y') }}</td>
+                        <td style="padding: 15px;">
+                            {% if item.weight %} <span style="font-weight:700; color:#4F46E5;">{{ item.weight }}</span> <small class="unit">kg</small> {% else %} <span class="dash">-</span> {% endif %}
+                        </td>
+                        <td style="padding: 15px;">
+                            {% if item.chest %} {{ item.chest }} <small class="unit">cm</small> {% else %} <span class="dash">-</span> {% endif %}
+                        </td>
+                        <td style="padding: 15px;">
+                            {% if item.biceps %} {{ item.biceps }} <small class="unit">cm</small> {% else %} <span class="dash">-</span> {% endif %}
+                        </td>
+                        <td style="padding: 15px;">
+                            {% if item.hips %} {{ item.hips }} <small class="unit">cm</small> {% else %} <span class="dash">-</span> {% endif %}
+                        </td>
+                        <td style="padding: 15px;">
+                            {% if item.thigh %} {{ item.thigh }} <small class="unit">cm</small> {% else %} <span class="dash">-</span> {% endif %}
+                        </td>
+                        <td style="padding: 15px;">
+                            {% if item.calf %} {{ item.calf }} <small class="unit">cm</small> {% else %} <span class="dash">-</span> {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="padding: 30px; text-align: center; color: var(--text-muted); font-style: italic;">
+                            No hay registros aún. ¡Añade el primero arriba!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    /* Estilos CSS Específicos */
+    .unit { color: #94A3B8; font-size: 0.8em; }
+    .dash { color: #CBD5E1; }
+    
+    .toggle-btn {
+        border: none; background: none; padding: 8px 16px; border-radius: 8px;
+        font-size: 0.9rem; font-weight: 600; color: #64748B; cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    .toggle-btn:hover { background: rgba(0,0,0,0.05); color: var(--text-main); }
+    .toggle-btn.active { background: white; color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+</style>
+
+<script>
+    const rawData = {{ chart_data|safe }};
+    const ctx = document.getElementById('bodyChart').getContext('2d');
+    
+    let currentChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: rawData.labels,
+            datasets: [{
+                label: 'Peso (kg)',
+                data: rawData.weight,
+                borderColor: '#4F46E5',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                borderWidth: 3,
+                tension: 0.3,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: 'white',
+                pointBorderWidth: 2,
+                spanGaps: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { 
+                y: { 
+                    beginAtZero: false,
+                    grid: { color: '#F1F5F9' }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            },
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    padding: 10,
+                    cornerRadius: 8,
+                    displayColors: false
+                }
+            }
+        }
+    });
+
+    function updateChart(metricKey, label, color) {
+        currentChart.data.datasets[0].data = rawData[metricKey];
+        currentChart.data.datasets[0].label = label;
+        currentChart.data.datasets[0].borderColor = color;
+        currentChart.data.datasets[0].backgroundColor = color + '20'; 
+        currentChart.update();
+
+        document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+</script>
+{% endblock %}

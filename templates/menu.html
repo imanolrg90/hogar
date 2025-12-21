@@ -3,6 +3,10 @@
 {% block title %}Planificador Semanal{% endblock %}
 
 {% block content %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <style>
     :root {
         --bg-color: #F3F4F6;
@@ -117,20 +121,38 @@
     }
     .meal-cell:hover { background: #f9fafb; }
 
-    /* --- CHIPS (ITEMS DENTRO DE LA CELDA) --- */
+    /* --- CHIPS (ITEMS DENTRO DE LA CELDA) --- 
+       MODIFICADO: Permite texto multilinea y altura variable 
+    */
     .items-container { display: flex; flex-direction: column; gap: 6px; width: 100%; }
 
     .menu-item-chip {
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 6px 10px; border-radius: 6px; font-size: 0.8rem;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: 0.2s;
-        border-left: 3px solid #ccc; background: white;
+        display: flex; 
+        justify-content: space-between; 
+        align-items: flex-start; /* Alineación superior para multilinea */
+        padding: 8px 10px; /* Un poco más de espacio */
+        border-radius: 6px; 
+        font-size: 0.8rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
+        transition: 0.2s;
+        border-left: 3px solid #ccc; 
+        background: white;
+        height: auto; /* Altura automática */
     }
     .menu-item-chip.recipe { border-left-color: var(--primary); }
     .menu-item-chip.ingredient { border-left-color: var(--secondary); }
 
-    .chip-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 140px; font-weight: 500; }
-    .chip-info { font-size: 0.7rem; color: #9ca3af; margin-left: 5px; }
+    .chip-text { 
+        white-space: normal;   /* Permite salto de línea */
+        overflow: visible;     /* Muestra todo el contenido */
+        text-overflow: clip;   /* Quita los puntos suspensivos (...) */
+        max-width: 100%;       /* Usa todo el ancho disponible */
+        line-height: 1.2;      /* Mejor lectura en varias líneas */
+        font-weight: 500; 
+        word-break: break-word; 
+    }
+    
+    .chip-info { font-size: 0.7rem; color: #9ca3af; margin-left: 5px; white-space: nowrap; }
 
     .btn-remove-chip {
         background: none; border: none; color: #ef4444; cursor: pointer;
@@ -182,6 +204,24 @@
         font-size: 0.9rem; font-weight: 600; color: #6b7280; transition: 0.2s;
     }
     .toggle-btn.active { background: white; color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    /* --- ESTILOS PARA EL BUSCADOR (SELECT2) --- */
+    .select2-container .select2-selection--single {
+        height: 42px !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 40px !important;
+    }
+    .select2-dropdown {
+        border-color: #e5e7eb !important;
+        border-radius: 8px !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+        z-index: 9999 !important; /* Asegurar que sale encima del modal */
+    }
 
     .modern-select, .modern-input-small {
         width: 100%; padding: 10px; font-size: 0.9rem; border: 1px solid #e5e7eb; border-radius: 8px; 
@@ -370,7 +410,7 @@
 
             <div id="blockRecipe">
                 <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; display: block;">Selecciona Receta:</label>
-                <select id="modalRecipeSelect" class="modern-select">
+                <select id="modalRecipeSelect" class="modern-select" style="width: 100%;">
                     <option value="">Buscar receta...</option>
                     {% for r in recetas %}
                         <option value="{{ r.id }}" data-name="{{ r.title }}">{{ r.title }}</option>
@@ -380,7 +420,7 @@
 
             <div id="blockIngredient" style="display: none;">
                 <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; display: block;">Selecciona Ingrediente:</label>
-                <select id="modalIngredientSelect" class="modern-select" style="margin-bottom: 10px;">
+                <select id="modalIngredientSelect" class="modern-select" style="width: 100%; margin-bottom: 10px;">
                     <option value="">Buscar ingrediente...</option>
                     {% for ing in all_ingredients %}
                         <option value="{{ ing.id }}" data-name="{{ ing.name }}">{{ ing.name }}</option>
@@ -399,6 +439,22 @@
 </div>
 
 <script>
+    // --- INICIALIZAR BUSCADOR EN DESPLEGABLES ---
+    $(document).ready(function() {
+        // Activamos Select2 en los selectores del modal
+        $('#modalRecipeSelect').select2({
+            dropdownParent: $('#addItemModal'), // Importante: para que funcione dentro del modal
+            width: '100%',
+            placeholder: "Buscar receta..."
+        });
+
+        $('#modalIngredientSelect').select2({
+            dropdownParent: $('#addItemModal'), // Importante: para que funcione dentro del modal
+            width: '100%',
+            placeholder: "Buscar ingrediente..."
+        });
+    });
+
     // Variables globales para contexto
     let currentDay = null;
     let currentType = null;
@@ -422,9 +478,9 @@
         currentDay = dia;
         currentType = tipo;
         
-        // Reset inputs
-        document.getElementById('modalRecipeSelect').value = "";
-        document.getElementById('modalIngredientSelect').value = "";
+        // Reset inputs y selects (Select2 necesita trigger change)
+        $('#modalRecipeSelect').val(null).trigger('change');
+        $('#modalIngredientSelect').val(null).trigger('change');
         document.getElementById('modalIngredientQty').value = "";
         
         document.getElementById('modalTitle').innerText = `Añadir a ${tipo} (${dia})`;
@@ -469,9 +525,11 @@
         const container = document.querySelector(`#${targetCellId} .items-container`);
         
         if (currentMode === 'recipe') {
-            const select = document.getElementById('modalRecipeSelect');
-            const id = select.value;
-            const name = select.options[select.selectedIndex]?.dataset.name;
+            // Usamos jQuery para coger el valor de Select2
+            const select = $('#modalRecipeSelect');
+            const id = select.val();
+            // Obtenemos el nombre del atributo data (Select2 mantiene el DOM original)
+            const name = select.find(':selected').data('name');
             
             if (!id) return alert("Selecciona una receta");
 
@@ -485,10 +543,10 @@
             container.insertAdjacentHTML('beforeend', chipHtml);
 
         } else {
-            const select = document.getElementById('modalIngredientSelect');
+            const select = $('#modalIngredientSelect');
             const qtyInput = document.getElementById('modalIngredientQty');
-            const id = select.value;
-            const name = select.options[select.selectedIndex]?.dataset.name;
+            const id = select.val();
+            const name = select.find(':selected').data('name');
             const qty = qtyInput.value || 0;
 
             if (!id) return alert("Selecciona un ingrediente");

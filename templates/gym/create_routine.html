@@ -1,38 +1,52 @@
 {% extends "base.html" %}
-{% block title %}Nueva Rutina{% endblock %}
+{% block title %}{{ 'Editar' if rutina_editar else 'Nueva' }} Rutina{% endblock %}
 {% block content %}
 <div class="header-section">
-    <h1>Crear Rutina</h1>
+    <h1>{{ 'Editar Rutina' if rutina_editar else 'Nueva Rutina' }}</h1>
 </div>
 
 <div class="bento-grid">
     <div class="bento-card span-2">
         <form method="POST">
             <div style="margin-bottom: 15px;">
-                <label>Nombre de la Rutina</label>
-                <input type="text" name="name" class="form-control" required style="width: 100%; padding: 10px;">
+                <label style="font-weight: 600;">Nombre de la Rutina</label>
+                {{ form.name(class="form-control", style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;", value=rutina_editar.name if rutina_editar else '') }}
             </div>
             <div style="margin-bottom: 15px;">
-                <label>Descripción (Opcional)</label>
-                <input type="text" name="description" class="form-control" style="width: 100%; padding: 10px;">
+                <label style="font-weight: 600;">Descripción</label>
+                {{ form.description(class="form-control", style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;", value=rutina_editar.description if rutina_editar else '') }}
             </div>
 
-            <div style="background: #F3F4F6; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-                <label>Añadir Ejercicios a la Rutina</label>
-                <div style="display: flex; gap: 10px; margin-top: 5px;">
-                    <select id="exerciseSelect" style="flex: 1; padding: 10px;">
-                        {% for ex in exercises %}
-                            <option value="{{ ex.id }}">{{ ex.name }}</option>
-                        {% endfor %}
-                    </select>
-                    <button type="button" onclick="addExercise()" class="action-key dark" style="width: auto;">
+            <div style="background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 20px;">
+                <label style="font-weight: 700; color: var(--primary); margin-bottom: 10px; display: block;">Añadir Ejercicio</label>
+                
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                    <div style="flex: 2; min-width: 200px;">
+                        <label style="font-size: 0.8rem; color: #64748B;">Ejercicio</label>
+                        <select id="exerciseSelect" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #CBD5E1;">
+                            {% for ex in exercises %}
+                                <option value="{{ ex.id }}">{{ ex.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div style="flex: 1; min-width: 80px;">
+                        <label style="font-size: 0.8rem; color: #64748B;">Series</label>
+                        <input type="number" id="inputSeries" value="3" min="1" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #CBD5E1;">
+                    </div>
+
+                    <div style="flex: 1; min-width: 80px;">
+                        <label style="font-size: 0.8rem; color: #64748B;">Descanso (s)</label>
+                        <input type="number" id="inputRest" value="90" step="10" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #CBD5E1;">
+                    </div>
+
+                    <button type="button" onclick="addExercise()" class="action-key dark" style="width: auto; height: 42px;">
                         <i class="fas fa-plus"></i>
                     </button>
                 </div>
             </div>
 
-            <div id="routineList" style="margin-bottom: 20px;">
-                </div>
+            <div id="routineList" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;"></div>
 
             <input type="hidden" name="exercises_data" id="exercisesData">
             <button type="submit" class="action-key">Guardar Rutina</button>
@@ -41,14 +55,45 @@
 </div>
 
 <script>
-    let routineExercises = [];
+    // Cargar datos si estamos editando
+    let routineExercises = {{ preloaded_json|safe if preloaded_json else '[]' }};
+
+    function render() {
+        const list = document.getElementById('routineList');
+        list.innerHTML = '';
+        routineExercises.forEach((item, index) => {
+            list.innerHTML += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: white; border: 1px solid #E5E7EB; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span style="background: #EFF6FF; color: var(--primary); font-weight: 700; padding: 5px 10px; border-radius: 6px;">${index + 1}</span>
+                        <div>
+                            <div style="font-weight: 600;">${item.name}</div>
+                            <div style="font-size: 0.85rem; color: #64748B;">
+                                ${item.series} series × ${item.rest}s descanso
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="remove(${index})" style="color: #EF4444; border: none; background: none; cursor: pointer; padding: 5px;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        });
+        document.getElementById('exercisesData').value = JSON.stringify(routineExercises);
+    }
 
     function addExercise() {
         const select = document.getElementById('exerciseSelect');
-        const id = select.value;
-        const name = select.options[select.selectedIndex].text;
+        const seriesInput = document.getElementById('inputSeries');
+        const restInput = document.getElementById('inputRest');
 
-        routineExercises.push({ id: id, name: name });
+        routineExercises.push({ 
+            id: select.value, 
+            name: select.options[select.selectedIndex].text,
+            series: seriesInput.value,
+            rest: restInput.value
+        });
+        
         render();
     }
 
@@ -57,18 +102,16 @@
         render();
     }
 
-    function render() {
-        const list = document.getElementById('routineList');
-        list.innerHTML = '';
-        routineExercises.forEach((item, index) => {
-            list.innerHTML += `
-                <div style="display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee;">
-                    <span>${index + 1}. ${item.name}</span>
-                    <button type="button" onclick="remove(${index})" style="color: red; border: none; background: none; cursor: pointer;">X</button>
-                </div>
-            `;
-        });
-        document.getElementById('exercisesData').value = JSON.stringify(routineExercises);
+    // En la función addExercise():
+    const select = document.getElementById('exerciseSelect');
+    // Asumiendo que has puesto data-type en las options del select como en log_workout
+    const type = select.options[select.selectedIndex].getAttribute('data-type');
+
+    if (type === 'Cardio') {
+        // Guardar distancia/tiempo en lugar de series
     }
+
+    // Render inicial
+    render();
 </script>
 {% endblock %}

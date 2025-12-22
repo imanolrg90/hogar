@@ -10,14 +10,42 @@
 
 <div class="bento-grid">
     
-    <div class="bento-card span-2" style="background: var(--text-main); color: white;">
-        <div style="display: flex; justify-content: space-between; align-items: center; height: 100%;">
+<div class="bento-card span-2" style="background: var(--text-main); color: white; padding: 25px; position: relative; overflow: hidden;">
+        
+        <i class="fas fa-dumbbell" style="position: absolute; right: -20px; bottom: -30px; font-size: 8rem; color: white; opacity: 0.05; transform: rotate(-20deg);"></i>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; height: 100%; position: relative; z-index: 1;">
+            
             <div>
-                <h2 style="margin: 0; font-size: 1.5rem;">Registrar Entrenamiento</h2>
-                <p style="opacity: 0.8; margin-top: 5px;">Anota tus series de hoy</p>
+                <h2 style="margin: 0; font-size: 1.6rem; letter-spacing: -0.5px; font-weight: 700;">
+                    Entrenamiento
+                </h2>
+                <p style="opacity: 0.7; margin-top: 6px; font-size: 0.95rem; font-weight: 400;">
+                    Registra tu sesión de hoy
+                </p>
             </div>
-            <a href="{{ url_for('gym_log') }}" class="action-key" style="background: white; color: var(--text-main); text-decoration: none; width: auto; padding: 0 20px;">
-                <i class="fas fa-plus"></i> Empezar
+
+            <a href="{{ url_for('gym_log') }}" 
+               style="
+                    background: white;
+                    color: var(--text-main);
+                    text-decoration: none;
+                    padding: 12px 28px;
+                    border-radius: 50px; 
+                    font-weight: 700;
+                    font-size: 0.85rem;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 10px;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                    border: none;
+               "
+               onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.3)';" 
+               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.2)';"
+            >
+                <i class="fas fa-play" style="font-size: 0.8em;"></i> 
+                <span>EMPEZAR</span>
             </a>
         </div>
     </div>
@@ -61,11 +89,14 @@
                 <div style="font-size: 0.9rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     {{ session.summary }}
                 </div>
+                
             </li>
+            
             {% else %}
                 <li style="color: var(--text-muted); font-style: italic;">No has entrenado recientemente.</li>
             {% endfor %}
         </ul>
+        <a href="{{ url_for('gym_history') }}" style="font-size: 0.85rem; color: var(--primary); font-weight: 600; text-decoration: none;">Ver todas &rarr;</a>
     </div>
 
 </div>

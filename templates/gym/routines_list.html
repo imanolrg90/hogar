@@ -1,28 +1,98 @@
 {% extends "base.html" %}
 {% block title %}Rutinas{% endblock %}
 {% block content %}
-<div class="header-section">
-    <h1>Mis Rutinas</h1>
-    <a href="{{ url_for('create_routine') }}" class="action-key dark" style="width: auto; padding: 0 20px; text-decoration: none;">
-        <i class="fas fa-plus"></i> Nueva
+
+<div class="header-section" style="margin-bottom: 20px;">
+    <h1 style="margin: 0;">Mis Rutinas</h1>
+    <p style="color: var(--text-muted); margin-top: 5px;">Organiza tus entrenamientos.</p>
+</div>
+
+<div style="display: flex; justify-content: center; margin-bottom: 30px;">
+    <a href="{{ url_for('create_routine') }}" 
+       style="
+            background: var(--text-main);
+            color: white;
+            text-decoration: none;
+            padding: 12px 35px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+       "
+       onmouseover="this.style.transform='translateY(-3px) scale(1.02)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.2)';" 
+       onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)';"
+    >
+        <i class="fas fa-plus" style="font-size: 0.9em;"></i> 
+        <span>NUEVA RUTINA</span>
     </a>
 </div>
 
 <div class="bento-grid">
-    {% for r in routines %}
-    <div class="bento-card">
-        <div class="widget-title">{{ r.name }}</div>
-        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 10px;">
-            {{ r.exercises|length }} ejercicios
+    <div class="bento-card" style="grid-column: 1 / -1; padding: 0; overflow: hidden;">
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="padding-left: 30px;">Nombre</th>
+                        <th>Descripción</th>
+                        <th style="text-align: center;">Ejercicios</th>
+                        <th style="text-align: right; padding-right: 30px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in routines %}
+                    <tr style="transition: background 0.2s;">
+                        <td style="padding: 20px 30px; font-weight: 600; color: var(--text-main);">
+                            {{ r.name }}
+                        </td>
+                        
+                        <td style="padding: 20px; color: var(--text-muted); font-size: 0.9rem;">
+                            {{ r.description or "-" }}
+                        </td>
+                        
+                        <td style="padding: 20px; text-align: center;">
+                            <span style="background: rgba(0,0,0,0.05); color: var(--text-main); padding: 4px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600;">
+                                {{ r.exercises|length }}
+                            </span>
+                        </td>
+                        
+                        <td style="padding: 20px 30px; text-align: right;">
+                            <div style="display: flex; gap: 15px; justify-content: flex-end; align-items: center;">
+                                <a href="{{ url_for('gym_log', routine_id=r.id) }}" class="btn-primary" style="padding: 8px 16px; font-size: 0.85rem; box-shadow: none;">
+                                    <i class="fas fa-play" style="font-size: 0.7rem;"></i> Entrenar
+                                </a>
+                                
+                                <div style="width: 1px; height: 20px; background: rgba(0,0,0,0.1);"></div>
+
+                                <a href="{{ url_for('edit_routine', id=r.id) }}" title="Editar" style="color: var(--text-muted); font-size: 1rem; transition: color 0.2s;">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                
+                                <a href="{{ url_for('delete_routine', id=r.id) }}" onclick="return confirm('¿Borrar rutina?')" title="Borrar" style="color: #EF4444; font-size: 1rem; opacity: 0.7; transition: opacity 0.2s;">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 50px; color: var(--text-muted); font-style: italic;">
+                            No tienes rutinas creadas todavía.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        <a href="{{ url_for('gym_log', routine_id=r.id) }}" style="color: var(--primary); font-weight: 700; text-decoration: none;">
-            Entrenar ahora &rarr;
-        </a>
     </div>
-    {% else %}
-    <div class="bento-card span-3">
-        No tienes rutinas creadas.
-    </div>
-    {% endfor %}
 </div>
+
+<style>
+    a[href*="edit"]:hover { color: var(--primary) !important; }
+    a[href*="delete"]:hover { opacity: 1 !important; }
+</style>
 {% endblock %}

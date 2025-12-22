@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Historial Entrenamientos{% endblock %}
+{% block content %}
+<div class="header-section">
+    <h1>Historial</h1>
+    <p style="color: var(--text-muted);">Tus sesiones pasadas.</p>
+</div>
+
+<div class="bento-grid">
+    <div class="bento-card" style="grid-column: 1 / -1; padding: 0; overflow: hidden;">
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background: #F9FAFB; border-bottom: 2px solid #E5E7EB; color: #6B7280; font-size: 0.85rem; text-transform: uppercase;">
+                    <tr>
+                        <th style="padding: 20px; text-align: left;">Fecha</th>
+                        <th style="padding: 20px; text-align: left;">Resumen</th>
+                        <th style="padding: 20px; text-align: center;">Foto</th>
+                        <th style="padding: 20px; text-align: right;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in sessions %}
+                    <tr style="border-bottom: 1px solid #F3F4F6;">
+                        <td style="padding: 20px; font-weight: 600;">
+                            {{ session.date.strftime('%d/%m/%Y') }}
+                            <div style="font-size: 0.8rem; color: #9CA3AF; font-weight: 400;">
+                                {{ session.date.strftime('%H:%M') }}
+                            </div>
+                        </td>
+                        <td style="padding: 20px;">
+                            <div style="font-weight: 600; color: var(--text-main);">{{ session.summary }}</div>
+                            {% if session.note %}
+                            <div style="font-size: 0.85rem; color: #6B7280; font-style: italic; margin-top: 4px;">
+                                "{{ session.note }}"
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 20px; text-align: center;">
+                            {% if session.photo_filename %}
+                                <i class="fas fa-camera" style="color: #059669; font-size: 1.2rem;" title="Foto adjunta"></i>
+                            {% else %}
+                                <span style="color: #E5E7EB;">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 20px; text-align: right;">
+                            <a href="{{ url_for('gym_session_detail', id=session.id) }}" style="color: var(--primary); font-weight: 600; text-decoration: none; border: 1px solid #E0E7FF; padding: 6px 12px; border-radius: 6px;">
+                                Ver
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="padding: 40px; text-align: center; color: #9CA3AF; font-style: italic;">
+                            No hay entrenamientos registrados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

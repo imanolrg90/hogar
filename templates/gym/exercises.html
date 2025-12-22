@@ -1,35 +1,17 @@
 {% extends "base.html" %}
-
 {% block title %}Ejercicios{% endblock %}
-
 {% block content %}
 <div class="header-section">
     <h1>Ejercicios</h1>
-    <p style="color: var(--text-muted);">Gestiona tu catálogo y analiza tu progreso.</p>
+    <p style="color: var(--text-muted);">Gestiona tu catálogo.</p>
 </div>
 
 <div class="bento-grid">
-    
     <div class="bento-card" style="grid-column: 1 / -1; min-height: 500px;">
-        
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 10px;">
             <div class="widget-title" style="margin: 0;">Catálogo</div>
-            
             <div style="display: flex; gap: 10px; align-items: center;">
-                <select id="categoryFilter" onchange="filterTable()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; background: #F9FAFB; font-size: 0.9rem; cursor: pointer;">
-                    <option value="ALL">Todos los músculos</option>
-                    <option value="Pecho">Pecho</option>
-                    <option value="Espalda">Espalda</option>
-                    <option value="Pierna">Pierna</option>
-                    <option value="Hombro">Hombro</option>
-                    <option value="Bíceps">Bíceps</option>
-                    <option value="Tríceps">Tríceps</option>
-                    <option value="Abdominales">Abdominales</option>
-                    <option value="Cardio">Cardio</option>
-                    <option value="Otro">Otro</option>
-                </select>
-
-                <button onclick="openModal()" class="action-key dark" style="width: auto; padding: 8px 20px; font-size: 0.9rem;">
+                <button onclick="openNewModal()" class="action-key dark" style="width: auto; padding: 8px 20px; font-size: 0.9rem;">
                     <i class="fas fa-plus"></i> Nuevo
                 </button>
             </div>
@@ -39,41 +21,35 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
                 <thead>
                     <tr style="text-align: left; border-bottom: 2px solid #F3F4F6; color: var(--text-muted);">
-                        <th style="padding: 12px; font-weight: 600;">Nombre del Ejercicio</th>
-                        <th style="padding: 12px; font-weight: 600;">Grupo Muscular</th>
-                        <th style="padding: 12px; text-align: right;">Acción</th>
+                        <th style="padding: 12px;">Nombre</th>
+                        <th style="padding: 12px;">Músculo</th>
+                        <th style="padding: 12px; text-align: right;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="exercisesTableBody">
                     {% for ex in exercises %}
-                    <tr class="exercise-row" data-category="{{ ex.muscle_group }}" style="border-bottom: 1px solid #F9FAFB; transition: background 0.2s;">
-                        <td style="padding: 12px; font-weight: 600; color: var(--text-main);">
-                            {{ ex.name }}
-                        </td>
-                        <td style="padding: 12px;">
-                            <span style="background: #EFF6FF; color: var(--primary); padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">
-                                {{ ex.muscle_group }}
-                            </span>
-                        </td>
-                        <td style="padding: 12px; text-align: right;">
-                            <a href="{{ url_for('gym_progress', exercise_id=ex.id) }}" style="text-decoration: none; color: var(--text-main); font-size: 0.85rem; border: 1px solid #E5E7EB; padding: 6px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; background: white;">
-                                <i class="fas fa-chart-line" style="color: var(--primary);"></i> Evolución
+                    <tr style="border-bottom: 1px solid #F9FAFB;">
+                        <td style="padding: 12px; font-weight: 600;">{{ ex.name }}</td>
+                        <td style="padding: 12px;">{{ ex.muscle_group }}</td>
+                        <td style="padding: 12px; text-align: right; white-space: nowrap;">
+                            <a href="{{ url_for('gym_progress', exercise_id=ex.id) }}" title="Ver Progreso"
+                               style="color: var(--primary); margin-right: 10px; text-decoration: none;">
+                                <i class="fas fa-chart-line"></i>
                             </a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="3" style="padding: 40px; text-align: center; color: var(--text-muted);">
-                            No hay ejercicios registrados. ¡Crea el primero!
+                            <button onclick="openEditModal('{{ ex.id }}', '{{ ex.name }}', '{{ ex.muscle_group }}')" 
+                                    title="Editar" style="border:none; background:none; cursor:pointer; color:#F59E0B; margin-right: 10px;">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <a href="{{ url_for('delete_exercise', id=ex.id) }}" 
+                               onclick="return confirm('¿Seguro que quieres borrar este ejercicio?')"
+                               title="Borrar" style="color: #EF4444; text-decoration: none;">
+                                <i class="fas fa-trash"></i>
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-            
-            <div id="noResultsMsg" style="display: none; text-align: center; padding: 20px; color: var(--text-muted); font-style: italic;">
-                No hay ejercicios en esta categoría.
-            </div>
         </div>
     </div>
 </div>
@@ -81,96 +57,52 @@
 <div id="exerciseModal" class="modal-overlay">
     <div class="modal-content">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin: 0; font-size: 1.25rem;">Nuevo Ejercicio</h2>
-            <button onclick="closeModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+            <h2 id="modalTitle" style="margin: 0; font-size: 1.25rem;">Nuevo Ejercicio</h2>
+            <button onclick="closeModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
         </div>
 
-        <form method="POST">
+        <form method="POST" id="exerciseForm">
             {{ form.hidden_tag() }}
             <div style="margin-bottom: 15px;">
-                <label style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 5px;">Nombre</label>
-                {{ form.name(class="form-control", placeholder="Ej: Press Banca", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;") }}
+                <label>Nombre</label>
+                {{ form.name(class="form-control", id="inputName", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;") }}
             </div>
             <div style="margin-bottom: 25px;">
-                <label style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 5px;">Músculo</label>
-                {{ form.muscle_group(class="form-control", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;") }}
+                <label>Músculo</label>
+                {{ form.muscle_group(class="form-control", id="inputMuscle", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;") }}
             </div>
             
-            <div style="display: flex; gap: 10px;">
-                <button type="button" onclick="closeModal()" style="flex: 1; padding: 10px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer;">Cancelar</button>
-                {{ form.submit(class="action-key dark", style="flex: 1; border: none; cursor: pointer; justify-content: center;") }}
-            </div>
+            <button type="submit" class="action-key dark">Guardar</button>
         </form>
     </div>
 </div>
 
 <style>
-    .modal-overlay {
-        display: none; /* Oculto por defecto */
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.5); /* Fondo oscuro semitransparente */
-        z-index: 1000;
-        align-items: center;
-        justify-content: center;
-        backdrop-filter: blur(2px);
-    }
-    .modal-content {
-        background: white;
-        padding: 25px;
-        border-radius: 16px;
-        width: 100%;
-        max-width: 400px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        animation: slideUp 0.3s ease;
-    }
-    @keyframes slideUp {
-        from { transform: translateY(20px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-    }
-    .exercise-row:hover {
-        background-color: #F9FAFB;
-    }
+    /* ... (Mismo CSS de modal que tenías) ... */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 400px; }
 </style>
 
 <script>
-    // --- LÓGICA DEL MODAL ---
-    function openModal() {
+    function openNewModal() {
+        document.getElementById('modalTitle').innerText = 'Nuevo Ejercicio';
+        document.getElementById('exerciseForm').action = "{{ url_for('gym_exercises') }}"; // Ruta crear
+        document.getElementById('inputName').value = '';
+        // Reset select (opcional)
+        document.getElementById('exerciseModal').style.display = 'flex';
+    }
+
+    function openEditModal(id, name, muscle) {
+        document.getElementById('modalTitle').innerText = 'Editar Ejercicio';
+        // Construir ruta de edit dinámicamente
+        document.getElementById('exerciseForm').action = "/gym/exercises/edit/" + id;
+        document.getElementById('inputName').value = name;
+        document.getElementById('inputMuscle').value = muscle;
         document.getElementById('exerciseModal').style.display = 'flex';
     }
 
     function closeModal() {
         document.getElementById('exerciseModal').style.display = 'none';
     }
-
-    // Cerrar si se hace clic fuera del contenido del modal
-    window.onclick = function(event) {
-        const modal = document.getElementById('exerciseModal');
-        if (event.target == modal) {
-            closeModal();
-        }
-    }
-
-    // --- LÓGICA DEL FILTRO ---
-    function filterTable() {
-        const filter = document.getElementById('categoryFilter').value.toUpperCase();
-        const rows = document.querySelectorAll('.exercise-row');
-        let visibleCount = 0;
-
-        rows.forEach(row => {
-            const category = row.getAttribute('data-category').toUpperCase();
-            if (filter === 'ALL' || category === filter) {
-                row.style.display = '';
-                visibleCount++;
-            } else {
-                row.style.display = 'none';
-            }
-        });
-
-        const msg = document.getElementById('noResultsMsg');
-        msg.style.display = (visibleCount === 0 && rows.length > 0) ? 'block' : 'none';
-    }
 </script>
-
 {% endblock %}

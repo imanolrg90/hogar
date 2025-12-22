@@ -1,117 +1,108 @@
 {% extends "base.html" %}
-
 {% block title %}Entrenar{% endblock %}
-
 {% block content %}
 <div class="header-section">
     <h1>Registrar Entrenamiento</h1>
-    <p style="color: var(--text-muted);">A darle duro. Registra cada serie.</p>
 </div>
 
-<form method="POST" id="workoutForm">
+<form method="POST" id="workoutForm" enctype="multipart/form-data">
     <input type="hidden" name="workout_data" id="workoutData">
 
     <div class="bento-grid">
-        
-        <div class="bento-card" style="grid-column: 1 / -1; padding: 30px; min-height: 600px;">
+        <div class="bento-card" style="grid-column: 1 / -1; padding: 20px; min-height: 600px;">
             
-            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #eee;">
-                
-                <div style="flex: 1; min-width: 250px;">
-                    <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; display: block;">
-                        <i class="fas fa-list"></i> Cargar Rutina
-                    </label>
-                    <div style="display: flex; gap: 10px;">
-                        <select id="routineLoader" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; background: #F9FAFB; font-size: 1rem;">
-                            <option value="">-- Seleccionar Rutina --</option>
-                            {% for r in routines %}
-                                <option value="{{ r.id }}" {% if request.args.get('routine_id')|int == r.id %}selected{% endif %}>{{ r.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <button type="button" onclick="loadRoutine()" class="action-key dark" style="width: auto; padding: 0 25px;">
-                            Cargar
-                        </button>
-                    </div>
+            <div style="display: flex; gap: 15px; flex-direction: column; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <select id="routineLoader" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ddd; background: #F9FAFB; min-width: 200px;">
+                        <option value="">-- Cargar Rutina --</option>
+                        {% for r in routines %}
+                            <option value="{{ r.id }}" {% if request.args.get('routine_id')|int == r.id %}selected{% endif %}>{{ r.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" onclick="loadRoutine()" class="action-key dark" style="width: auto; padding: 0 15px; font-size: 0.9rem;">Ir</button>
                 </div>
-
-                <div style="flex: 2; min-width: 300px;">
-                    <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; display: block;">
-                        <i class="fas fa-sticky-note"></i> Nota del entreno
+                
+                <input type="text" name="note" class="form-control" placeholder="Notas del entreno..." style="width: 100%; padding: 10px;">
+                
+                <div style="background: #F0FDF4; padding: 10px; border-radius: 8px; border: 1px dashed #16A34A; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-camera" style="color: #16A34A;"></i>
+                    <label style="font-size: 0.9rem; font-weight: 600; color: #166534; cursor: pointer; flex: 1;">
+                        Adjuntar foto (opcional)
+                        <input type="file" name="photo" accept="image/*" style="display: block; margin-top: 5px; font-size: 0.8rem;">
                     </label>
-                    <input type="text" name="note" placeholder="Ej: Hoy me siento fuerte en banca..." class="form-control" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 1rem;">
                 </div>
             </div>
 
-            <div style="background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 30px;">
-                <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 10px; display: block;">
-                    Añadir Serie Manual
-                </label>
-                
-                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                    <div style="flex: 3; min-width: 200px;">
-                        <select id="exerciseSelect" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 1rem;">
+            <div style="background: #F8FAFC; padding: 15px; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 25px;">
+                <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; display: block;">AÑADIR EJERCICIO</label>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <div style="flex: 100%; width: 100%;">
+                        <select id="exerciseSelect" onchange="toggleInputs()" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #CBD5E1;">
                             {% for ex in exercises %}
-                                <option value="{{ ex.id }}">{{ ex.name }}</option>
+                                <option value="{{ ex.id }}" data-type="{{ 'Cardio' if ex.muscle_group == 'Cardio' else 'Strength' }}">
+                                    {{ ex.name }}
+                                </option>
                             {% endfor %}
                         </select>
                     </div>
-
-                    <div style="flex: 1; min-width: 100px; position: relative;">
-                        <input type="number" id="weightInput" placeholder="0" step="0.5" style="width: 100%; padding: 12px; padding-right: 30px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 1rem;">
-                        <span style="position: absolute; right: 10px; top: 13px; color: #94A3B8; font-size: 0.8rem; font-weight: bold;">KG</span>
+                    <div style="display: flex; gap: 5px; flex: 1;">
+                        <input type="number" id="seriesInput" placeholder="Series" value="3" class="input-compact" style="flex: 0.8;">
+                        <div id="inputsStrength" style="display: flex; gap: 5px; flex: 2; width: 100%;">
+                            <input type="number" id="weightInput" placeholder="kg" step="0.5" class="input-compact">
+                            <input type="number" id="repsInput" placeholder="reps" class="input-compact">
+                        </div>
+                        <div id="inputsCardio" style="display: none; gap: 5px; flex: 2; width: 100%;">
+                            <input type="number" id="distInput" placeholder="km" step="0.1" class="input-compact">
+                            <input type="number" id="timeInput" placeholder="min" class="input-compact">
+                        </div>
                     </div>
-
-                    <div style="flex: 1; min-width: 100px; position: relative;">
-                        <input type="number" id="repsInput" placeholder="0" style="width: 100%; padding: 12px; padding-right: 30px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 1rem;">
-                        <span style="position: absolute; right: 10px; top: 13px; color: #94A3B8; font-size: 0.8rem; font-weight: bold;">REPS</span>
-                    </div>
-
-                    <button type="button" onclick="addSet()" class="action-key" style="width: 50px; height: 46px; display: flex; align-items: center; justify-content: center; background: var(--primary); color: white; border-radius: 8px;">
+                    <button type="button" onclick="addSet()" class="action-key" style="width: 42px; min-width: 42px; display: flex; align-items: center; justify-content: center; padding: 0;">
                         <i class="fas fa-plus"></i>
                     </button>
                 </div>
             </div>
 
-            <div class="widget-title" style="margin-bottom: 20px;">Resumen de la Sesión</div>
+            <div id="setsList" style="display: flex; flex-direction: column; gap: 12px;"></div>
 
-            <div style="display: grid; grid-template-columns: 50px 1fr 150px 150px 50px; padding: 10px 20px; color: var(--text-muted); font-size: 0.85rem; font-weight: 700; border-bottom: 2px solid #eee; margin-bottom: 10px;">
-                <div>#</div>
-                <div>Ejercicio</div>
-                <div style="text-align: center;">Peso (Kg)</div>
-                <div style="text-align: center;">Reps</div>
-                <div></div>
+            <div id="emptyMsg" style="padding: 30px; text-align: center; color: var(--text-muted); font-style: italic; background: #F9FAFB; border-radius: 12px; border: 1px dashed #ddd; margin-top: 10px; display: none;">
+                Selecciona una rutina arriba para empezar.
             </div>
 
-            <div id="setsList" style="display: flex; flex-direction: column; gap: 8px;">
-                </div>
-
-            <div id="emptyMsg" style="padding: 40px; text-align: center; color: var(--text-muted); font-style: italic; background: #F9FAFB; border-radius: 12px; border: 1px dashed #ddd; margin-top: 10px;">
-                No hay series. ¡Selecciona una rutina o añade ejercicios arriba!
-            </div>
-
-            <div style="margin-top: 40px; text-align: right;">
-                <button type="submit" class="action-key" style="background: #059669; color: white; padding: 15px 40px; font-size: 1.1rem; width: auto; display: inline-flex;">
-                    <i class="fas fa-check-circle" style="margin-right: 10px;"></i> Guardar Entrenamiento
+            <div style="margin-top: 30px;">
+                <button type="submit" class="action-key" style="background: #059669; color: white; width: 100%; padding: 15px; font-size: 1.1rem; justify-content: center;">
+                    <i class="fas fa-check-circle"></i> Terminar Entrenamiento
                 </button>
             </div>
-
         </div>
     </div>
 </form>
 
+{% include "gym/log_workout_scripts.html" ignore missing %}
 <script>
-    let sets = {{ preloaded_json|safe }};
+    // ... (PEGA AQUÍ EL SCRIPT DEL MENSAJE ANTERIOR) ...
+    let sets = {{ preloaded_json|safe if preloaded_json else '[]' }};
+    let activeIntervals = {};
+    let currentTimerIndex = null;
+    const modal = document.getElementById('timerModal');
+    const modalDisplay = document.getElementById('modalTimerDisplay');
+    const modalTitle = document.getElementById('modalExerciseName');
 
     function loadRoutine() {
         const id = document.getElementById('routineLoader').value;
         if(id) window.location.href = `/gym/log?routine_id=${id}`;
     }
 
+    function toggleInputs() {
+        const select = document.getElementById('exerciseSelect');
+        const type = select.options[select.selectedIndex].getAttribute('data-type');
+        document.getElementById('inputsStrength').style.display = (type === 'Cardio') ? 'none' : 'flex';
+        document.getElementById('inputsCardio').style.display = (type === 'Cardio') ? 'flex' : 'none';
+    }
+
     function renderList() {
         const container = document.getElementById('setsList');
-        const emptyMsg = document.getElementById('emptyMsg');
         const inputData = document.getElementById('workoutData');
-
+        const emptyMsg = document.getElementById('emptyMsg');
         container.innerHTML = '';
 
         if (sets.length === 0) {
@@ -123,115 +114,75 @@
         }
 
         sets.forEach((set, index) => {
-            const row = document.createElement('div');
-            row.className = 'set-row-item';
-            
-            // Estilo base de la fila
-            let borderColor = set.weight === '' ? 'var(--primary)' : 'transparent';
-            let bgColor = set.weight === '' ? '#EFF6FF' : 'white';
+            const card = document.createElement('div');
+            card.className = 'set-card';
+            let hasData = (set.type === 'Cardio') ? (set.distance || set.time) : (set.weight && set.reps);
+            if(hasData) { card.style.borderLeftColor = "#059669"; card.style.background = "#F0FDF4"; }
 
-            row.style.cssText = `
-                display: grid; 
-                grid-template-columns: 50px 1fr 150px 150px 50px; 
-                align-items: center; 
-                background: ${bgColor}; 
-                padding: 15px 20px; 
-                border-radius: 10px; 
-                border: 1px solid #E5E7EB;
-                border-left: 5px solid ${borderColor};
-                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-                transition: all 0.2s;
-            `;
-
-            row.innerHTML = `
-                <div style="font-weight: 700; color: #9CA3AF;">${index + 1}</div>
-                <div style="font-weight: 600; font-size: 1.05rem; color: var(--text-main);">${set.name}</div>
-                
-                <div style="text-align: center;">
-                    <input type="number" value="${set.weight}" placeholder="-" 
-                        onchange="updateSet(${index}, 'weight', this.value)" 
-                        style="width: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; text-align: center; font-weight: bold; color: var(--text-main);">
-                </div>
-
-                <div style="text-align: center;">
-                    <input type="number" value="${set.reps}" placeholder="-" 
-                        onchange="updateSet(${index}, 'reps', this.value)" 
-                        style="width: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; text-align: center; font-weight: bold; color: var(--text-main);">
-                </div>
-
-                <div style="text-align: right;">
-                    <button type="button" onclick="removeSet(${index})" style="color: #EF4444; border: none; background: none; cursor: pointer; padding: 5px; font-size: 1.1rem;">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
-
-            // Marcar visualmente como completado si se escriben datos
-            if(set.weight !== '' && set.reps !== '') {
-                row.style.borderLeftColor = "#059669"; // Verde
-                row.style.background = "#F0FDF4";
+            let restHtml = '';
+            if (set.rest) {
+                let badgeClass = "color:#6366F1; background:#EEF2FF; border:1px solid #C7D2FE;";
+                let icon = '<i class="fas fa-play" style="font-size:0.7em;"></i>';
+                let text = `${set.rest}s`;
+                let action = `startTimer(${index}, ${set.rest})`;
+                const now = Date.now();
+                if (set.timerEnd && set.timerEnd > now) {
+                    badgeClass = "color:#D97706; background:#FEF3C7; border:1px solid #FCD34D;";
+                    icon = '<i class="fas fa-hourglass-half fa-spin" style="font-size:0.7em;"></i>';
+                    text = formatTime(Math.ceil((set.timerEnd - now) / 1000));
+                    action = `openTimerModal(${index})`;
+                    ensureTimerRunning(index);
+                }
+                restHtml = `<div onclick="${action}" id="timer-badge-${index}" style="cursor:pointer; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; ${badgeClass}">${icon} <span>${text}</span></div>`;
             }
 
-            container.appendChild(row);
-        });
+            let inputsHtml = '';
+            const seriesInput = `<div class="input-wrapper"><input type="number" value="${set.series}" placeholder="Sets" onchange="updateSet(${index}, 'series', this.value)" class="input-compact" style="background:#F3F4F6;"><span class="floating-label">SETS</span></div>`;
 
+            if (set.type === 'Cardio') {
+                inputsHtml = `${seriesInput}<div class="input-wrapper"><input type="number" value="${set.distance}" placeholder="km" step="0.1" onchange="updateSet(${index}, 'distance', this.value)" class="input-compact"><span class="floating-label">KM</span></div><div class="input-wrapper"><input type="number" value="${set.time}" placeholder="min" onchange="updateSet(${index}, 'time', this.value)" class="input-compact"><span class="floating-label">MIN</span></div>`;
+            } else {
+                inputsHtml = `${seriesInput}<div class="input-wrapper"><input type="number" value="${set.weight}" placeholder="kg" step="0.5" onchange="updateSet(${index}, 'weight', this.value)" class="input-compact"><span class="floating-label">KG</span></div><div class="input-wrapper"><input type="number" value="${set.reps}" placeholder="reps" onchange="updateSet(${index}, 'reps', this.value)" class="input-compact"><span class="floating-label">REPS</span></div>`;
+            }
+
+            card.innerHTML = `<div class="set-header"><div class="set-title"><span>${set.name}</span></div><div style="display:flex; align-items:center; gap:10px;">${restHtml}<button type="button" class="btn-delete" onclick="removeSet(${index})"><i class="fas fa-times"></i></button></div></div><div class="set-inputs">${inputsHtml}</div>`;
+            container.appendChild(card);
+        });
         inputData.value = JSON.stringify(sets);
     }
 
     function addSet() {
         const select = document.getElementById('exerciseSelect');
-        const w = document.getElementById('weightInput').value;
-        const r = document.getElementById('repsInput').value;
-
-        if(!w || !r) return alert("Introduce peso y repeticiones");
-
-        sets.push({
-            id: select.value,
-            name: select.options[select.selectedIndex].text,
-            weight: w,
-            reps: r
-        });
-
-        renderList();
-        // Limpiar inputs
-        document.getElementById('repsInput').value = '';
-        document.getElementById('repsInput').focus();
+        const type = select.options[select.selectedIndex].getAttribute('data-type');
+        let newItem = { id: select.value, name: select.options[select.selectedIndex].text, type: type, series: document.getElementById('seriesInput').value || 3, weight:'', reps:'', distance:'', time:'', rest:90 };
+        if (type === 'Cardio') { newItem.distance = document.getElementById('distInput').value; newItem.time = document.getElementById('timeInput').value; } else { newItem.weight = document.getElementById('weightInput').value; newItem.reps = document.getElementById('repsInput').value; }
+        sets.push(newItem); renderList();
+        document.getElementById('weightInput').value = ''; document.getElementById('repsInput').value = '';
     }
+    function updateSet(i, f, v) { sets[i][f] = v; }
+    function removeSet(i) { sets.splice(i, 1); renderList(); }
+    function startTimer(i, s) { sets[i].timerEnd = Date.now() + (s * 1000); openTimerModal(i); renderList(); }
+    function openTimerModal(i) { currentTimerIndex = i; modal.style.display = 'flex'; modalTitle.innerText = sets[i].name; updateModalDisplay(); }
+    function closeTimerModal() { modal.style.display = 'none'; currentTimerIndex = null; }
+    function finishTimerNow() { if(currentTimerIndex!==null){ sets[currentTimerIndex].timerEnd = Date.now()-100; closeTimerModal(); renderList(); } }
+    function adjustTime(s) { if(currentTimerIndex!==null){ sets[currentTimerIndex].timerEnd += (s*1000); updateModalDisplay(); } }
+    function updateModalDisplay() { if(currentTimerIndex===null) return; const rem = Math.max(0, Math.ceil((sets[currentTimerIndex].timerEnd - Date.now())/1000)); modalDisplay.innerText = formatTime(rem); }
+    function ensureTimerRunning(i) { if(activeIntervals[i]) return; activeIntervals[i] = setInterval(()=>{ const end = sets[i].timerEnd; const now = Date.now(); if(!end || now >= end) { clearInterval(activeIntervals[i]); delete activeIntervals[i]; if(currentTimerIndex===i) closeTimerModal(); renderList(); return; } const badge = document.getElementById(`timer-badge-${i}`); if(badge) badge.querySelector('span').innerText = formatTime(Math.ceil((end-now)/1000)); if(currentTimerIndex===i) updateModalDisplay(); }, 1000); }
+    function formatTime(s) { let m = Math.floor(s/60); let sec = s%60; return `${m}:${sec<10?'0'+sec:sec}`; }
 
-    function updateSet(index, field, value) {
-        sets[index][field] = value;
-        renderList(); // Re-renderizar para actualizar colores de borde
-    }
-
-    function removeSet(index) {
-        sets.splice(index, 1);
-        renderList();
-    }
-
+    toggleInputs();
     renderList();
 </script>
 
 <style>
-    /* Responsive para móvil */
-    @media (max-width: 768px) {
-        .set-row-item {
-            grid-template-columns: 1fr 1fr !important;
-            grid-template-areas: 
-                "name name"
-                "weight reps"
-                "delete delete";
-            gap: 10px;
-        }
-        .set-row-item > div:nth-child(1) { display: none; } /* Ocultar numero */
-        .set-row-item > div:nth-child(2) { grid-area: name; }
-        .set-row-item > div:nth-child(3) { grid-area: weight; text-align: left !important; }
-        .set-row-item > div:nth-child(4) { grid-area: reps; text-align: right !important; }
-        .set-row-item > div:nth-child(5) { grid-area: delete; text-align: right; margin-top: -40px;} /* Botón borrar arriba */
-        
-        /* Ocultar cabecera tabla en móvil */
-        div[style*="display: grid; grid-template-columns: 50px"] {
-            display: none !important;
-        }
-    }
+    .input-compact { width: 100%; padding: 12px 5px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 1rem; text-align: center; background: white; font-weight: 600; color: var(--text-main); }
+    .set-card { background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); display: flex; flex-direction: column; gap: 12px; position: relative; border-left: 4px solid var(--primary); }
+    .set-header { display: flex; justify-content: space-between; align-items: center; }
+    .set-title { font-weight: 700; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+    .set-inputs { display: grid; grid-template-columns: 1fr 1.5fr 1.5fr; gap: 8px; align-items: center; }
+    .floating-label { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 0.65rem; font-weight: 800; color: #94A3B8; pointer-events: none; }
+    .input-wrapper { position: relative; }
+    .btn-delete { background: none; border: none; color: #EF4444; cursor: pointer; padding: 5px; }
+    @media (max-width: 768px) { .floating-label { display: none; } .set-inputs { gap: 5px; } }
 </style>
 {% endblock %}

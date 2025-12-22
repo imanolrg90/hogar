@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Editar Medidas{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <a href="{{ url_for('gym_measurements') }}" style="text-decoration: none; color: var(--text-muted); margin-bottom: 10px; display: inline-block;">&larr; Volver</a>
+    <h1>Editar Registro</h1>
+    <p style="color: var(--text-muted);">Fecha: {{ medida.date.strftime('%d/%m/%Y') }}</p>
+</div>
+
+<div class="bento-grid">
+    <div class="bento-card span-2" style="background: white;">
+        <form method="POST">
+            {{ form.hidden_tag() }}
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                
+                <div>
+                    <label style="font-weight: 600; font-size: 0.9rem; color: #4B5563; display: block; margin-bottom: 5px;">Peso (kg)</label>
+                    {{ form.weight(class="form-control", style="width:100%; border: 1px solid #ddd;") }}
+                </div>
+
+                <div>
+                    <label style="font-weight: 600; font-size: 0.9rem; color: #4B5563; display: block; margin-bottom: 5px;">Pecho (cm)</label>
+                    {{ form.chest(class="form-control", style="width:100%; border: 1px solid #ddd;") }}
+                </div>
+
+                <div>
+                    <label style="font-weight: 600; font-size: 0.9rem; color: #4B5563; display: block; margin-bottom: 5px;">Bíceps (cm)</label>
+                    {{ form.biceps(class="form-control", style="width:100%; border: 1px solid #ddd;") }}
+                </div>
+
+                <div>
+                    <label style="font-weight: 600; font-size: 0.9rem; color: #4B5563; display: block; margin-bottom: 5px;">Cadera (cm)</label>
+                    {{ form.hips(class="form-control", style="width:100%; border: 1px solid #ddd;") }}
+                </div>
+
+                <div>
+                    <label style="font-weight: 600; font-size: 0.9rem; color: #4B5563; display: block; margin-bottom: 5px;">Muslo (cm)</label>
+                    {{ form.thigh(class="form-control", style="width:100%; border: 1px solid #ddd;") }}
+                </div>
+
+                <div>
+                    <label style="font-weight: 600; font-size: 0.9rem; color: #4B5563; display: block; margin-bottom: 5px;">Gemelo (cm)</label>
+                    {{ form.calf(class="form-control", style="width:100%; border: 1px solid #ddd;") }}
+                </div>
+            </div>
+
+            <button type="submit" class="action-key dark" style="width: 100%; justify-content: center; padding: 15px;">
+                Guardar Cambios
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

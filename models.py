@@ -153,23 +153,27 @@ class ShoppingItem(db.Model):
     completed = db.Column(db.Boolean, default=False)
     is_auto = db.Column(db.Boolean, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
 class Exercise(db.Model):
     __tablename__ = 'exercise'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    muscle_group = db.Column(db.String(50)) # Pecho, Espalda, Pierna...
+    muscle_group = db.Column(db.String(50)) 
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    
-    # Relación para ver el historial
     sets = db.relationship('WorkoutSet', backref='exercise', lazy=True)
+
+    @property
+    def is_cardio(self):
+        return self.muscle_group == 'Cardio'
 
 class WorkoutSession(db.Model):
     __tablename__ = 'workout_session'
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.DateTime, default=datetime.utcnow) # Ojo: asegúrate de importar datetime arriba si no está
+    date = db.Column(db.DateTime, default=datetime.utcnow)
     note = db.Column(db.String(200))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # --- NUEVO CAMPO PARA FOTO ---
+    photo_filename = db.Column(db.String(255), nullable=True)
 
     sets = db.relationship('WorkoutSet', backref='session', cascade="all, delete-orphan", lazy=True)
 
@@ -185,19 +189,22 @@ class WorkoutSet(db.Model):
     session_id = db.Column(db.Integer, db.ForeignKey('workout_session.id'), nullable=False)
     exercise_id = db.Column(db.Integer, db.ForeignKey('exercise.id'), nullable=False)
     
-    weight = db.Column(db.Float, nullable=False)
-    reps = db.Column(db.Integer, nullable=False)
-    order = db.Column(db.Integer, default=1) # Para saber qué serie fue primero
+    # Fuerza
+    weight = db.Column(db.Float, default=0)
+    reps = db.Column(db.Integer, default=0)
+    
+    # Cardio (NUEVOS)
+    distance = db.Column(db.Float, default=0.0) # km
+    time = db.Column(db.Integer, default=0)     # minutos
+    
+    order = db.Column(db.Integer, default=1)
 
-    # --- RUTINAS DE GIMNASIO ---
 class Routine(db.Model):
     __tablename__ = 'routine'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False) # Ej: "Empuje A", "Pierna Hipertrofia"
+    name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(200))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    
-    # Relación con los ejercicios de la rutina
     exercises = db.relationship('RoutineExercise', backref='routine', cascade="all, delete-orphan", lazy=True)
 
 class RoutineExercise(db.Model):
@@ -205,17 +212,17 @@ class RoutineExercise(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     routine_id = db.Column(db.Integer, db.ForeignKey('routine.id'), nullable=False)
     exercise_id = db.Column(db.Integer, db.ForeignKey('exercise.id'), nullable=False)
-    order = db.Column(db.Integer, default=1) # Para que salgan en orden
+    order = db.Column(db.Integer, default=1)
     
-    # Podemos acceder al objeto ejercicio completo desde aquí
+    # Objetivos Fuerza
+    series = db.Column(db.Integer, default=3)
+    rest_seconds = db.Column(db.Integer, default=90)
+    
+    # Objetivos Cardio (NUEVOS)
+    target_distance = db.Column(db.Float, default=0.0)
+    target_time = db.Column(db.Integer, default=0)
+    
     exercise = db.relationship('Exercise')
-
-# --- MODIFICACIÓN: Añade esto a WorkoutSession si quieres saber qué rutina usaste ---
-# (Si no quieres borrar la tabla antigua, puedes saltarte este campo o usar migraciones, 
-# pero para desarrollo local rápido, añade el campo y borra la db antigua si da error)
-# class WorkoutSession(...):
-#     ... campos existentes ...
-#     routine_used_id = db.Column(db.Integer, db.ForeignKey('routine.id'), nullable=True)
 
 # --- MODELO DE MEDIDAS CORPORALES ---
 class BodyMeasurement(db.Model):

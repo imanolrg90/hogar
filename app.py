@@ -1,4 +1,5 @@
 import os
+from werkzeug.utils import secure_filename
 import re
 import json
 import datetime
@@ -15,12 +16,13 @@ from models import Routine, RoutineExercise # Añadir a la lista
 from forms import RoutineForm # Añadir a la lista
 from models import BodyMeasurement # Añadir
 from forms import BodyMeasurementForm # Añadir
+from sqlalchemy import inspect, text
 # --- Configuración Inicial ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'clave_secreta_pro_home_os' # Cambia esto en producción
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///home_manager.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+app.config['UPLOAD_FOLDER'] = os.path.join('static', 'uploads')
 # Inicializar extensiones
 db.init_app(app)
 
@@ -63,8 +65,7 @@ def ingredients_manager():
         return redirect(url_for('ingredients_manager'))
         
     all_ingredients = Ingredient.query.order_by(Ingredient.name).all()
-    return render_template('ingredients.html', ingredients=all_ingredients)
-
+    return render_template('food/ingredients.html', ingredients=all_ingredients)
 
 @app.route('/create_recipe', methods=['GET', 'POST'])
 @login_required
@@ -113,8 +114,7 @@ def create_recipe():
         flash(f'Receta "{title}" creada correctamente.', 'success')
         return redirect(url_for('create_recipe'))
 
-    return render_template('create_recipe.html', ingredients=all_ingredients)
-
+    return render_template('food/create_recipe.html', ingredients=all_ingredients)
 
 
 # --- RUTAS DE AUTENTICACIÓN ---
@@ -162,46 +162,54 @@ def logout():
     logout_user()
     flash('Has cerrado sesión correctamente.', 'info')
     return redirect(url_for('login'))
-
 @app.route('/')
 @login_required
 def dashboard():
-    # Importamos lo necesario para calcular fechas
-    from datetime import date, timedelta
+    from datetime import date, timedelta, datetime
     
-    # 1. Calcular el día de la semana y la fecha de inicio de ESTA semana
-    dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    # 1. Fechas base
     hoy = date.today()
-    dia_actual_str = dias_semana[hoy.weekday()] # Ej: "Lunes"
-    
-    # Calculamos el lunes de esta semana exacta para filtrar en DB
+    dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    dia_actual_str = dias_semana[hoy.weekday()]
     inicio_semana_actual = hoy - timedelta(days=hoy.weekday())
+    
+    # Rango de tiempo para "HOY" (00:00 a 23:59)
+    today_start = datetime(hoy.year, hoy.month, hoy.day)
+    today_end = today_start + timedelta(days=1)
 
-    # 2. Buscar el menú filtrando por Usuario + Día + Semana Actual
+    # 2. MENU DE HOY
     menu_hoy = MenuSemanal.query.filter_by(
         user_id=current_user.id, 
         dia=dia_actual_str,
-        week_start=inicio_semana_actual # <--- ESTA ES LA CLAVE QUE FALTABA
+        week_start=inicio_semana_actual
     ).first()
 
-    # Consultas auxiliares (se mantienen igual)
-    tareas = TareaLimpieza.query.filter_by(user_id=current_user.id).order_by(TareaLimpieza.proxima_fecha).limit(5).all()
-    lavadoras = Lavadora.query.filter_by(user_id=current_user.id).all()
-    total_recetas = Receta.query.filter_by(user_id=current_user.id).count()
+    # 3. ENTRENAMIENTO DE HOY
+    workout_hoy = WorkoutSession.query.filter(
+        WorkoutSession.user_id == current_user.id,
+        WorkoutSession.date >= today_start,
+        WorkoutSession.date < today_end
+    ).first()
 
+    # 4. PESO DE HOY (NUEVO)
+    peso_hoy = BodyMeasurement.query.filter(
+        BodyMeasurement.user_id == current_user.id,
+        BodyMeasurement.date >= today_start,
+        BodyMeasurement.date < today_end
+    ).first()
+
+    # (Mantenemos estadísticas generales por si quieres usarlas, pero quitamos tareas y listas de la query para optimizar)
     return render_template('dashboard.html', 
                            menu=menu_hoy, 
-                           tareas=tareas, 
-                           lavadoras=lavadoras,
-                           stats={'recetas': total_recetas})
-
+                           workout=workout_hoy,
+                           peso=peso_hoy)
 
 @app.route('/recetas')
 @login_required
 def recetas_page():
     # Mostrar recetas solo del usuario, ordenadas por la más reciente
     recetas = Receta.query.filter_by(user_id=current_user.id).order_by(Receta.id.desc()).all()
-    return render_template('recetas.html', recetas=recetas)
+    return render_template('food/recetas.html', recetas=recetas)    
 
 
 @app.route('/add_recipe', methods=['GET', 'POST'])
@@ -268,7 +276,7 @@ def add_recipe():
     if not form.ingredientes.entries:
         form.ingredientes.append_entry()
         
-    return render_template('add_recipe.html', form=form)
+    return render_template('food/add_recipe.html', form=form)
 
 @app.route('/menu', methods=['GET', 'POST'])
 @app.route('/menu/<week_str>', methods=['GET', 'POST'])
@@ -398,7 +406,7 @@ def menu_semanal_page(week_str=None):
     prev_week = (current_week - timedelta(weeks=1)).strftime('%Y-%m-%d')
     next_week = (current_week + timedelta(weeks=1)).strftime('%Y-%m-%d')
 
-    return render_template('menu.html',
+    return render_template('food/menu.html',
                            current_week=current_week,
                            real_current_week=real_current_week,
                            prev_week=prev_week,
@@ -442,7 +450,7 @@ def generar_lista_compra_db(menu_items):
 def shopping_list():
     # Obtener items ordenados: primero los NO completados, luego los completados
     items = ShoppingItem.query.filter_by(user_id=current_user.id).order_by(ShoppingItem.completed, ShoppingItem.nombre).all()
-    return render_template('shopping_list.html', items=items)
+    return render_template('food/shopping_list.html', items=items)
 
 @app.route('/shopping_list/add', methods=['POST'])
 @login_required
@@ -590,7 +598,7 @@ def edit_recipe(id):
     preloaded_json = json.dumps(preloaded_ingredients)
 
     # Reutilizamos la plantilla create_recipe.html pero pasándole datos extra
-    return render_template('create_recipe.html', 
+    return render_template('food/create_recipe.html', 
                            ingredients=all_ingredients, 
                            receta_editar=receta, # Objeto receta
                            preloaded_json=preloaded_json) # JSON para JS
@@ -608,7 +616,7 @@ def gym_dashboard():
     routines = Routine.query.filter_by(user_id=current_user.id).all()
     
     # Pasamos 'routines' a la plantilla
-    return render_template('gym/dashboard.html', sessions=recent_sessions, exercises=exercises, routines=routines)
+    return render_template('gym/gymdashboard.html', sessions=recent_sessions, exercises=exercises, routines=routines)
 @app.route('/gym/exercises', methods=['GET', 'POST'])
 @login_required
 def gym_exercises():
@@ -626,79 +634,169 @@ def gym_exercises():
     
     exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.muscle_group, Exercise.name).all()
     return render_template('gym/exercises.html', form=form, exercises=exercises)
+
 @app.route('/gym/log', methods=['GET', 'POST'])
 @login_required
 def gym_log():
-    # 1. Obtener datos para los selectores (Ejercicios y Rutinas disponibles)
     exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.name).all()
     routines = Routine.query.filter_by(user_id=current_user.id).all()
     
-    # 2. Lógica de PRECARGA (Si la URL trae ?routine_id=X)
     preloaded_sets = []
     routine_id = request.args.get('routine_id')
     
     if routine_id:
         routine = Routine.query.get(routine_id)
-        # Seguridad: verificar que la rutina pertenece al usuario actual
         if routine and routine.user_id == current_user.id:
             for ex_assoc in routine.exercises:
-                # Añadimos un "esqueleto" de serie para que el JS lo pinte
+                # Determinamos tipo
+                is_cardio = (ex_assoc.exercise.muscle_group == 'Cardio')
+                
+                # --- BUSCAR ÚLTIMO REGISTRO (HISTORIAL) ---
+                last_set = WorkoutSet.query.join(WorkoutSession).filter(
+                    WorkoutSession.user_id == current_user.id,
+                    WorkoutSet.exercise_id == ex_assoc.exercise_id
+                ).order_by(WorkoutSession.date.desc()).first()
+                
+                # Valores por defecto: Prioridad al historial, si no, vacío
+                def_weight = last_set.weight if last_set else ''
+                def_reps = last_set.reps if last_set else ''
+                
+                # Para cardio, si no hay historial, miramos si la rutina tenía un objetivo (target)
+                def_dist = last_set.distance if (last_set and last_set.distance > 0) else (ex_assoc.target_distance if ex_assoc.target_distance else '')
+                def_time = last_set.time if (last_set and last_set.time > 0) else (ex_assoc.target_time if ex_assoc.target_time else '')
+
+                # ------------------------------------------
+
                 preloaded_sets.append({
                     'id': str(ex_assoc.exercise_id),
                     'name': ex_assoc.exercise.name,
-                    'weight': '', # Dejamos vacío para rellenar en el gym
-                    'reps': ''
+                    'type': 'Cardio' if is_cardio else 'Strength',
+                    
+                    'series': ex_assoc.series if ex_assoc.series else 3,
+                    
+                    # Usamos los valores históricos aquí
+                    'weight': def_weight, 
+                    'reps': def_reps,
+                    'distance': def_dist,
+                    'time': def_time,
+                    
+                    'rest': ex_assoc.rest_seconds
                 })
 
-    # 3. Lógica de GUARDADO (Cuando se envía el formulario POST)
     if request.method == 'POST':
         data_json = request.form.get('workout_data')
         note = request.form.get('note')
         
+        # Procesar FOTO (se mantiene igual)
+        photo_file = request.files.get('photo')
+        filename = None
+        if photo_file and photo_file.filename != '':
+            fname = secure_filename(photo_file.filename)
+            import time
+            fname = f"{int(time.time())}_{fname}"
+            photo_file.save(os.path.join(app.root_path, app.config['UPLOAD_FOLDER'], fname))
+            filename = fname
+
         if data_json:
             try:
-                # A. Crear la Sesión (Cabecera)
-                new_session = WorkoutSession(
-                    user_id=current_user.id, 
-                    note=note, 
-                    date=datetime.now() # Usa la hora actual
-                )
+                new_session = WorkoutSession(user_id=current_user.id, note=note, date=datetime.now(), photo_filename=filename)
                 db.session.add(new_session)
-                db.session.flush() # Necesario para obtener el ID de la sesión antes de seguir
+                db.session.flush()
                 
-                # B. Procesar el JSON y guardar las Series (Detalle)
                 sets_data = json.loads(data_json)
                 
                 for index, s in enumerate(sets_data):
-                    # Solo guardamos si el usuario rellenó peso y reps
-                    # (Esto filtra los ejercicios de la rutina que se hayan dejado en blanco)
-                    if s.get('weight') and s.get('reps'):
-                        new_set = WorkoutSet(
-                            session_id=new_session.id,
-                            exercise_id=int(s['id']),
-                            weight=float(s['weight']),
-                            reps=int(s['reps']),
-                            order=index
-                        )
-                        db.session.add(new_set)
+                    try:
+                        num_series = int(s.get('series', 1))
+                    except:
+                        num_series = 1
+                    
+                    has_strength = s.get('weight') and s.get('reps')
+                    has_cardio = s.get('distance') or s.get('time')
+                    
+                    if has_strength or has_cardio:
+                        for i in range(num_series):
+                            new_set = WorkoutSet(
+                                session_id=new_session.id,
+                                exercise_id=int(s['id']),
+                                order=index, 
+                                weight=float(s['weight']) if s.get('weight') else 0,
+                                reps=int(s['reps']) if s.get('reps') else 0,
+                                distance=float(s['distance']) if s.get('distance') else 0,
+                                time=int(s['time']) if s.get('time') else 0
+                            )
+                            db.session.add(new_set)
                 
                 db.session.commit()
-                flash('Entrenamiento registrado. ¡Buen trabajo!', 'success')
+                flash('Entrenamiento guardado.', 'success')
                 return redirect(url_for('gym_dashboard'))
-                
             except Exception as e:
                 db.session.rollback()
-                print(f"Error al guardar entreno: {e}")
-                flash('Hubo un error al guardar el entrenamiento.', 'danger')
-                
-    # 4. Renderizar la plantilla (pasando el JSON precargado si existe)
+                print(f"Error: {e}")
+                flash('Error al guardar.', 'danger')
+
     return render_template('gym/log_workout.html', 
                            exercises=exercises, 
                            routines=routines, 
                            preloaded_json=json.dumps(preloaded_sets))
 
+
+@app.route('/gym/history')
+@login_required
+def gym_history():
+    # Obtener todas las sesiones ordenadas por fecha (más reciente primero)
+    sessions = WorkoutSession.query.filter_by(user_id=current_user.id).order_by(WorkoutSession.date.desc()).all()
+    return render_template('gym/history.html', sessions=sessions)
+@app.route('/gym/session/<int:id>')
+@login_required
+def gym_session_detail(id):
+    session = WorkoutSession.query.get_or_404(id)
+    if session.user_id != current_user.id:
+        flash('No tienes permiso.', 'error')
+        return redirect(url_for('gym_history'))
+    return render_template('gym/session_detail.html', session=session)
+
 # Asegúrate de importar esto arriba del todo en app.py, o ponlo dentro de la función así:
 from itertools import groupby 
+
+@app.route('/gym/measurements/delete/<int:id>')
+@login_required
+def delete_measurement(id):
+    medida = BodyMeasurement.query.get_or_404(id)
+    if medida.user_id != current_user.id:
+        flash('No tienes permiso.', 'error')
+        return redirect(url_for('gym_measurements'))
+    
+    try:
+        db.session.delete(medida)
+        db.session.commit()
+        flash('Registro eliminado.', 'info')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar: {e}', 'error')
+        
+    return redirect(url_for('gym_measurements'))
+
+@app.route('/gym/measurements/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_measurement(id):
+    medida = BodyMeasurement.query.get_or_404(id)
+    if medida.user_id != current_user.id:
+        flash('No tienes permiso.', 'error')
+        return redirect(url_for('gym_measurements'))
+    
+    # Rellenamos el formulario con los datos existentes
+    form = BodyMeasurementForm(obj=medida)
+    
+    if form.validate_on_submit():
+        # Actualizamos los campos
+        form.populate_obj(medida)
+        db.session.commit()
+        flash('Medidas actualizadas correctamente.', 'success')
+        return redirect(url_for('gym_measurements'))
+        
+    return render_template('gym/edit_measurement.html', form=form, medida=medida)
+
 
 @app.route('/gym/progress/<int:exercise_id>')
 @login_required
@@ -748,6 +846,7 @@ def gym_routines():
     routines = Routine.query.filter_by(user_id=current_user.id).all()
     return render_template('gym/routines_list.html', routines=routines)
 
+
 @app.route('/gym/routines/new', methods=['GET', 'POST'])
 @login_required
 def create_routine():
@@ -755,16 +854,14 @@ def create_routine():
     all_exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.name).all()
     
     if request.method == 'POST':
-        # 1. Crear la Rutina
         new_routine = Routine(
             name=request.form.get('name'),
             description=request.form.get('description'),
             user_id=current_user.id
         )
         db.session.add(new_routine)
-        db.session.flush() # Para tener ID
+        db.session.flush()
         
-        # 2. Añadir Ejercicios desde JSON
         exercises_json = request.form.get('exercises_data')
         if exercises_json:
             try:
@@ -773,14 +870,19 @@ def create_routine():
                     assoc = RoutineExercise(
                         routine_id=new_routine.id,
                         exercise_id=int(item['id']),
-                        order=i
+                        order=i,
+                        series=int(item.get('series', 1)),
+                        rest_seconds=int(item.get('rest', 60)),
+                        # Nuevos campos
+                        target_distance=float(item.get('distance', 0)),
+                        target_time=int(item.get('time', 0))
                     )
                     db.session.add(assoc)
             except Exception as e:
                 print(e)
         
         db.session.commit()
-        flash('Rutina creada correctamente.', 'success')
+        flash('Rutina creada.', 'success')
         return redirect(url_for('gym_routines'))
 
     return render_template('gym/create_routine.html', form=form, exercises=all_exercises)
@@ -835,8 +937,222 @@ def gym_measurements():
                            history=reversed(history),
                            chart_data=json.dumps(chart_data)) # Pasamos JSON al template
 
+
+
+
+
+# --- GESTIÓN DE EJERCICIOS (EDITAR / BORRAR) ---
+
+@app.route('/gym/exercises/delete/<int:id>')
+@login_required
+def delete_exercise(id):
+    ex = Exercise.query.get_or_404(id)
+    if ex.user_id != current_user.id:
+        flash('No tienes permiso.', 'error')
+        return redirect(url_for('gym_exercises'))
+    
+    # Al borrar el ejercicio, Cascade borrará sus registros en rutinas y logs si está configurado,
+    # si no, SQLAlchemy suele manejarlo si las FK están bien.
+    try:
+        db.session.delete(ex)
+        db.session.commit()
+        flash('Ejercicio eliminado.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar (puede estar en uso): {e}', 'error')
+        
+    return redirect(url_for('gym_exercises'))
+
+@app.route('/gym/exercises/edit/<int:id>', methods=['POST'])
+@login_required
+def edit_exercise(id):
+    ex = Exercise.query.get_or_404(id)
+    if ex.user_id != current_user.id:
+        flash('No tienes permiso.', 'error')
+        return redirect(url_for('gym_exercises'))
+    
+    ex.name = request.form.get('name')
+    ex.muscle_group = request.form.get('muscle_group')
+    db.session.commit()
+    flash('Ejercicio actualizado.', 'success')
+    return redirect(url_for('gym_exercises'))
+
+
+# --- GESTIÓN DE RUTINAS (CREAR / EDITAR / BORRAR) ---
+
+@app.route('/gym/routines/delete/<int:id>')
+@login_required
+def delete_routine(id):
+    rutina = Routine.query.get_or_404(id)
+    if rutina.user_id != current_user.id:
+        flash('No tienes permiso.', 'error')
+        return redirect(url_for('gym_routines'))
+    
+    try:
+        db.session.delete(rutina)
+        db.session.commit()
+        flash('Rutina eliminada.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error: {e}', 'error')
+        
+    return redirect(url_for('gym_routines'))
+
+@app.route('/gym/routines/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_routine(id):
+    rutina = Routine.query.get_or_404(id)
+    if rutina.user_id != current_user.id:
+        flash('No tienes permiso.', 'error')
+        return redirect(url_for('gym_routines'))
+
+    all_exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.name).all()
+    form = RoutineForm(obj=rutina) # Rellena el form con datos actuales
+
+    if request.method == 'POST':
+        rutina.name = request.form.get('name')
+        rutina.description = request.form.get('description')
+        
+        # Actualizar ejercicios: Borramos los viejos y creamos los nuevos
+        for old_assoc in rutina.exercises:
+            db.session.delete(old_assoc)
+        
+        exercises_json = request.form.get('exercises_data')
+        if exercises_json:
+            try:
+                items = json.loads(exercises_json)
+                for i, item in enumerate(items):
+                    assoc = RoutineExercise(
+                        routine_id=rutina.id,
+                        exercise_id=int(item['id']),
+                        order=i,
+                        series=int(item.get('series', 3)),      # <--- NUEVO
+                        rest_seconds=int(item.get('rest', 60))  # <--- NUEVO
+                    )
+                    db.session.add(assoc)
+            except Exception as e:
+                print(f"Error JSON: {e}")
+        
+        db.session.commit()
+        flash('Rutina actualizada correctamente.', 'success')
+        return redirect(url_for('gym_routines'))
+
+    # PREPARAR DATOS PARA EL FRONTEND (Pre-carga)
+    preloaded_data = []
+    for assoc in rutina.exercises:
+        preloaded_data.append({
+            'id': str(assoc.exercise_id),
+            'name': assoc.exercise.name,
+            'series': assoc.series,          # <--- NUEVO
+            'rest': assoc.rest_seconds       # <--- NUEVO
+        })
+    
+    return render_template('gym/create_routine.html', 
+                           form=form, 
+                           exercises=all_exercises,
+                           rutina_editar=rutina,
+                           preloaded_json=json.dumps(preloaded_data))
+
+@app.route('/gym/session/delete/<int:id>')
+@login_required
+def delete_workout_session(id):
+    session = WorkoutSession.query.get_or_404(id)
+    if session.user_id != current_user.id:
+        flash('No tienes permiso.', 'error')
+        return redirect(url_for('gym_history'))
+    
+    # 1. Borrar archivo de foto si existe
+    if session.photo_filename:
+        try:
+            file_path = os.path.join(app.root_path, app.config['UPLOAD_FOLDER'], session.photo_filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            print(f"Error borrando archivo: {e}")
+
+    # 2. Borrar registro (los sets se borran solos por cascade)
+    db.session.delete(session)
+    db.session.commit()
+    flash('Sesión eliminada correctamente.', 'success')
+    return redirect(url_for('gym_history'))
+
+@app.route('/gym/session/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_workout_session(id):
+    session = WorkoutSession.query.get_or_404(id)
+    if session.user_id != current_user.id:
+        flash('No tienes permiso.', 'error')
+        return redirect(url_for('gym_history'))
+
+    if request.method == 'POST':
+        # Actualizar Nota
+        session.note = request.form.get('note')
+        
+        # Actualizar Fecha (Opcional)
+        date_str = request.form.get('date')
+        if date_str:
+            try:
+                # El input datetime-local envía formato 'YYYY-MM-DDTHH:MM'
+                session.date = datetime.strptime(date_str, '%Y-%m-%dT%H:%M')
+            except ValueError:
+                pass # Si falla, mantenemos la anterior
+
+        # --- GESTIÓN DE FOTO (Añadir o Cambiar) ---
+        photo_file = request.files.get('photo')
+        if photo_file and photo_file.filename != '':
+            # 1. Borrar foto vieja si tenía
+            if session.photo_filename:
+                try:
+                    old_path = os.path.join(app.root_path, app.config['UPLOAD_FOLDER'], session.photo_filename)
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
+                except:
+                    pass
+            
+            # 2. Guardar nueva
+            fname = secure_filename(photo_file.filename)
+            import time
+            fname = f"{int(time.time())}_{fname}" # Timestamp único
+            photo_file.save(os.path.join(app.root_path, app.config['UPLOAD_FOLDER'], fname))
+            session.photo_filename = fname
+            
+        db.session.commit()
+        flash('Sesión actualizada.', 'success')
+        return redirect(url_for('gym_session_detail', id=session.id))
+
+    return render_template('gym/edit_session.html', session=session)
+
+
+def update_db_schema(app):
+    with app.app_context():
+        inspector = inspect(db.engine)
+        for table_name, table_obj in db.metadata.tables.items():
+            if not inspector.has_table(table_name): continue 
+            existing_columns = [col['name'] for col in inspector.get_columns(table_name)]
+            
+            for column in table_obj.columns:
+                if column.name not in existing_columns:
+                    print(f"🛠 Añadiendo columna '{column.name}' a '{table_name}'...")
+                    col_type = column.type.compile(db.engine.dialect)
+                    # Truco: Si es NOT NULL, SQLite da problemas al añadir. Lo hacemos NULLABLE o con DEFAULT.
+                    sql = text(f'ALTER TABLE {table_name} ADD COLUMN {column.name} {col_type} DEFAULT 0')
+                    try:
+                        with db.engine.connect() as conn:
+                            conn.execute(sql)
+                            conn.commit()
+                    except Exception as e:
+                        print(f"Error: {e}")
+
 # --- EJECUCIÓN ---
 if __name__ == '__main__':
-    # Puerto 5003 como en tu configuración original
+    # 1. Crear tablas que no existan (comportamiento normal)
+    with app.app_context():
+        db.create_all()
+        
+    # 2. EJECUTAR EL CORRECTOR DINÁMICO (Tu nueva función)
+    print("Iniciando chequeo de base de datos...")
+    update_db_schema(app)
+    
+    # 3. Arrancar servidor
     print("Iniciando Home OS Multi-User en puerto 5003...")
     app.run(debug=True, port=5003)

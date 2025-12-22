@@ -1,82 +1,135 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' rx='30' fill='%230f172a'/%3E%3Cpath fill='%2322d3ee' d='M40 36h12v56H40zM76 36h12v56H76z'/%3E%3Crect x='40' y='60' width='48' height='10' fill='%2322d3ee'/%3E%3Ccircle cx='100' cy='32' r='8' fill='%23f472b6'/%3E%3C/svg%3E">    <title>{% block title %}Home OS{% endblock %}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <title>{% block title %}Home OS{% endblock %}</title>
     
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap" rel="stylesheet">
 </head>
-<body>
+<body id="body-layout">
 
     {% if current_user.is_authenticated %}
-    <div class="sidebar">
+    
+    <button class="mobile-toggle" onclick="toggleMobileSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+    
+    <div class="sidebar-overlay" id="overlay" onclick="toggleMobileSidebar()"></div>
+
+    <div class="sidebar" id="sidebar">
+        
+        <div class="desktop-toggle-btn" onclick="toggleDesktopSidebar()">
+            <i class="fas fa-chevron-left" id="toggleIcon"></i>
+        </div>
+
         <div>
             <div class="brand">
-                <i class="fas fa-cube"></i> Home OS
+                <i class="fas fa-cube"></i> 
+                <span>Home OS</span> 
             </div>
 
             <nav class="nav-links">
-                <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}" title="Dashboard">
                     <i class="fas fa-chart-pie" style="width: 20px;"></i> 
-                    Dashboard
+                    <span>Dashboard</span>
                 </a>
 
-                <a href="{{ url_for('menu_semanal_page') }}" class="{% if 'menu' in request.path %}active{% endif %}">
-                    <i class="fas fa-calendar-week" style="width: 20px;"></i> 
-                    Menú Semanal
-                </a>
+                {% set food_routes = ['menu_semanal_page', 'recetas_page', 'ingredients_manager', 'shopping_list', 'create_recipe', 'edit_recipe', 'add_recipe'] %}
+                {% set is_food_active = request.endpoint in food_routes %}
 
-                <a href="{{ url_for('recetas_page') }}" class="{% if 'recetas' in request.path %}active{% endif %}">
-    <i class="fas fa-book" style="width: 20px;"></i> 
-    Recetas
-</a>
+                <div class="nav-group">
+                    <div class="nav-group-header {% if is_food_active %}active-group{% endif %}" onclick="toggleSubmenu('food-submenu')">
+                        <div style="display: flex; align-items: center;">
+                            <i class="fas fa-utensils" style="width: 20px; margin-right: 12px;"></i>
+                            <span>Comida</span>
+                        </div>
+                        <i class="fas fa-chevron-down arrow-icon" style="font-size: 0.8rem;"></i>
+                    </div>
+                    
+                    <div class="nav-submenu {% if is_food_active %}open{% endif %}" id="food-submenu">
+                        <a href="{{ url_for('menu_semanal_page') }}" class="sub-link {% if 'menu' in request.path %}active{% endif %}">
+                            <i class="fas fa-calendar-week"></i> Menú Semanal
+                        </a>
+                        <a href="{{ url_for('recetas_page') }}" class="sub-link {% if 'recetas' in request.path or 'recipe' in request.path %}active{% endif %}">
+                            <i class="fas fa-book"></i> Recetas
+                        </a>
+                        <a href="{{ url_for('ingredients_manager') }}" class="sub-link {% if 'ingredients' in request.path %}active{% endif %}">
+                            <i class="fas fa-carrot"></i> Ingredientes
+                        </a>
+                        <a href="{{ url_for('shopping_list') }}" class="sub-link {% if 'shopping_list' in request.path %}active{% endif %}">
+                            <i class="fas fa-shopping-cart"></i> Lista Compra
+                        </a>
+                    </div>
+                </div>
 
-<a href="{{ url_for('ingredients_manager') }}" class="{% if 'ingredients' in request.path %}active{% endif %}">
-    <i class="fas fa-carrot" style="width: 20px;"></i> 
-    Ingredientes
-</a>
-<a href="{{ url_for('shopping_list') }}" class="{% if 'shopping_list' in request.path %}active{% endif %}">
-    <i class="fas fa-shopping-cart" style="width: 20px;"></i> 
-    Lista Compra
-</a>
-                
+                {% set gym_routes = ['gym_dashboard', 'gym_exercises', 'gym_log', 'gym_history', 'gym_session_detail', 'gym_routines', 'create_routine', 'edit_routine', 'gym_measurements', 'edit_measurement'] %}
+                {% set is_gym_active = request.endpoint in gym_routes %}
 
-<a href="{{ url_for('gym_dashboard') }}" class="{% if 'gym' in request.path %}active{% endif %}">
-    <i class="fas fa-dumbbell" style="width: 20px;"></i> 
-    Gimnasio
-</a>
+                <div class="nav-group">
+                    <div class="nav-group-header {% if is_gym_active %}active-group{% endif %}" style="padding: 0; overflow: hidden;">
+                        
+                        <a href="{{ url_for('gym_dashboard') }}" style="flex: 1; padding: 12px 0 12px 15px; display: flex; align-items: center; color: inherit; text-decoration: none;" title="Ir al Dashboard de Gym">
+                            <i class="fas fa-dumbbell" style="width: 20px; margin-right: 12px;"></i> 
+                            <span>Gimnasio</span>
+                        </a>
+
+                        <div onclick="toggleSubmenu('gym-submenu')" style="padding: 12px 15px; cursor: pointer; display: flex; align-items: center; border-left: 1px solid rgba(0,0,0,0.03);">
+                             <i class="fas fa-chevron-down arrow-icon" style="font-size: 0.8rem;"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="nav-submenu {% if is_gym_active %}open{% endif %}" id="gym-submenu">
+                        <a href="{{ url_for('gym_log') }}" class="sub-link {% if 'log' in request.path %}active{% endif %}">
+                            <i class="fas fa-play"></i> Entrenar
+                        </a>
+                        <a href="{{ url_for('gym_routines') }}" class="sub-link {% if 'routines' in request.path %}active{% endif %}">
+                            <i class="fas fa-list-ol"></i> Rutinas
+                        </a>
+                        <a href="{{ url_for('gym_exercises') }}" class="sub-link {% if 'exercises' in request.path %}active{% endif %}">
+                            <i class="fas fa-dumbbell"></i> Ejercicios
+                        </a>
+                        <a href="{{ url_for('gym_measurements') }}" class="sub-link {% if 'measurements' in request.path %}active{% endif %}">
+                            <i class="fas fa-ruler-combined"></i> Medidas
+                        </a>
+                        <a href="{{ url_for('gym_history') }}" class="sub-link {% if 'history' in request.path %}active{% endif %}">
+                            <i class="fas fa-history"></i> Historial
+                        </a>
+                    </div>
+                </div>
+
             </nav>
         </div>
 
         <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #F3F4F6;">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                <div style="width: 35px; height: 35px; background: #E5E7EB; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--text-main);">
+            <div class="user-section" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                <div style="width: 35px; height: 35px; background: #E5E7EB; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--text-main); flex-shrink: 0;">
                     {{ current_user.username[0]|upper }}
                 </div>
-                <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-main);">{{ current_user.username }}</div>
+                <div class="user-details" style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); white-space: nowrap;">
+                    {{ current_user.username }}
+                </div>
             </div>
             
-            <a href="{{ url_for('logout') }}" style="color: #EF4444; text-decoration: none; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; font-weight: 500; transition: opacity 0.2s;">
-                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+            <a href="{{ url_for('logout') }}" style="color: #EF4444; text-decoration: none; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; font-weight: 500; justify-content: flex-start;" title="Cerrar Sesión">
+                <i class="fas fa-sign-out-alt" style="width: 20px;"></i> 
+                <span class="logout-text">Cerrar Sesión</span>
             </a>
         </div>
     </div>
     {% endif %}
 
-    <div class="content" style="{% if not current_user.is_authenticated %}margin: 0 auto; max-width: 100%; display: flex; flex-direction: column; justify-content: center;{% endif %}">
-        
+    <div class="content">
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
-            <div style="margin-bottom: 30px; max-width: 1000px; margin-left: auto; margin-right: auto; width: 100%;">
+            <div style="margin-bottom: 20px;">
                 {% for category, message in messages %}
                   <div style="padding: 15px; border-radius: 12px; margin-bottom: 10px; font-weight: 500;
-                              background: {% if category=='success' %}#ECFDF5{% elif category=='danger' %}#FEF2F2{% elif category=='warning' %}#FFFBEB{% else %}#EFF6FF{% endif %}; 
-                              color: {% if category=='success' %}#065F46{% elif category=='danger' %}#991B1B{% elif category=='warning' %}#92400E{% else %}#1E40AF{% endif %}; 
-                              border: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; gap: 10px;">
-                      <i class="fas {% if category=='success' %}fa-check-circle{% elif category=='danger' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i> 
+                              background: {% if category=='success' %}#ECFDF5{% elif category=='danger' %}#FEF2F2{% else %}#EFF6FF{% endif %}; 
+                              color: {% if category=='success' %}#065F46{% elif category=='danger' %}#991B1B{% else %}#1E40AF{% endif %}; 
+                              border: 1px solid rgba(0,0,0,0.05);">
                       {{ message }}
                   </div>
                 {% endfor %}
@@ -87,5 +140,106 @@
         {% block content %}{% endblock %}
     </div>
 
+    <style>
+        /* Estilos del Submenú */
+        .nav-group-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 15px; color: #6B7280; /* var(--text-muted) hardcoded por seguridad si no carga CSS */
+            cursor: pointer;
+            border-radius: 12px; transition: 0.2s; font-weight: 500;
+            margin-bottom: 5px;
+        }
+        .nav-group-header:hover, .nav-group-header.active-group {
+            background: white; color: #4F46E5; /* var(--primary) */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+        /* Rotar flecha si está activo */
+        .nav-group-header.active-group .arrow-icon { transform: rotate(180deg); }
+        .arrow-icon { transition: transform 0.3s; opacity: 0.5; }
+
+        .nav-submenu {
+            max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out;
+            padding-left: 10px;
+        }
+        .nav-submenu.open { max-height: 500px; }
+
+        /* Enlaces dentro del submenú */
+        .sub-link {
+            display: flex !important; align-items: center; gap: 10px;
+            padding: 10px 15px !important; font-size: 0.9rem !important;
+            color: #6B7280 !important; border-radius: 10px;
+            text-decoration: none; margin-bottom: 2px;
+        }
+        .sub-link:hover { color: #1F2937 !important; background: rgba(0,0,0,0.02); }
+        .sub-link.active { color: #4F46E5 !important; background: #EEF2FF !important; font-weight: 600; }
+        
+        .sub-link i { font-size: 0.8rem; width: 15px; text-align: center; opacity: 0.7; }
+
+        /* Colapsado de barra lateral (Modo icono) */
+        body.collapsed .nav-group-header span,
+        body.collapsed .nav-group-header .arrow-icon,
+        body.collapsed .nav-submenu { display: none; }
+        
+        body.collapsed .nav-group-header { justify-content: center; padding: 12px; }
+        body.collapsed .nav-group-header i { margin-right: 0 !important; }
+        /* Ajuste para el botón dividido en modo colapsado */
+        body.collapsed .nav-group-header a { padding: 0 !important; justify-content: center; }
+        body.collapsed .nav-group-header div[onclick] { display: none !important; } /* Ocultar flecha extra en colapsado */
+    </style>
+
+    <script>
+        // 1. Lógica Móvil (Overlay)
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('active');
+            
+            if (sidebar.classList.contains('active')) {
+                overlay.style.display = 'block';
+            } else {
+                overlay.style.display = 'none';
+            }
+        }
+
+        // 2. Lógica Escritorio (Colapsar/Expandir)
+        const body = document.getElementById('body-layout');
+        const icon = document.getElementById('toggleIcon');
+
+        if (localStorage.getItem('sidebarState') === 'collapsed') {
+            body.classList.add('collapsed');
+            if(icon) icon.className = "fas fa-chevron-right";
+        }
+
+        function toggleDesktopSidebar() {
+            body.classList.toggle('collapsed');
+            
+            if (body.classList.contains('collapsed')) {
+                localStorage.setItem('sidebarState', 'collapsed');
+                icon.className = "fas fa-chevron-right";
+                
+                // Cerrar submenús al colapsar para que no se rompa el estilo
+                document.querySelectorAll('.nav-submenu').forEach(el => el.classList.remove('open'));
+                document.querySelectorAll('.nav-group-header').forEach(el => el.classList.remove('active-group'));
+            } else {
+                localStorage.setItem('sidebarState', 'expanded');
+                icon.className = "fas fa-chevron-left";
+            }
+        }
+
+        // 3. Lógica Submenús
+        function toggleSubmenu(id) {
+            // Si la barra está colapsada, expandirla primero
+            if (body.classList.contains('collapsed')) {
+                toggleDesktopSidebar();
+            }
+            
+            const submenu = document.getElementById(id);
+            // El header es el elemento previo al submenu
+            const header = submenu.previousElementSibling;
+            
+            submenu.classList.toggle('open');
+            header.classList.toggle('active-group');
+        }
+    </script>
 </body>
 </html>

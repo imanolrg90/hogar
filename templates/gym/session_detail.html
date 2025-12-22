@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Detalle Sesión{% endblock %}
+{% block content %}
+<div class="header-section" style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div>
+        <a href="{{ url_for('gym_history') }}" style="text-decoration: none; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 10px; display: inline-block;">&larr; Volver al historial</a>
+        <h1 style="margin: 0;">Entrenamiento</h1>
+        <p style="color: var(--text-muted); margin-top: 5px;">{{ session.date.strftime('%d/%m/%Y a las %H:%M') }}</p>
+    </div>
+    
+    <div style="display: flex; gap: 10px;">
+        <a href="{{ url_for('edit_workout_session', id=session.id) }}" class="action-key" style="width: auto; padding: 10px 15px; background: white; color: var(--text-main); font-size: 0.9rem;">
+            <i class="fas fa-edit"></i> Editar
+        </a>
+        
+        <a href="{{ url_for('delete_workout_session', id=session.id) }}" 
+           onclick="return confirm('¿Seguro que quieres eliminar esta sesión y sus datos? No se puede deshacer.')"
+           class="action-key" style="width: auto; padding: 10px 15px; background: #FEF2F2; color: #EF4444; border-color: #FECACA; font-size: 0.9rem;">
+            <i class="fas fa-trash"></i>
+        </a>
+    </div>
+</div>
+
+<div class="bento-grid">
+    <div class="bento-card span-2">
+        <div class="widget-title">Resumen</div>
+        {% if session.note %}
+            <div style="background: #FEF3C7; color: #92400E; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <i class="fas fa-sticky-note" style="margin-right: 8px;"></i> {{ session.note }}
+            </div>
+        {% endif %}
+        
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid #eee; text-align: left; color: var(--text-muted); font-size: 0.9rem;">
+                    <th style="padding: 10px;">Ejercicio</th>
+                    <th>Detalle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for set in session.sets %}
+                <tr style="border-bottom: 1px solid #f9f9f9;">
+                    <td style="padding: 12px; font-weight: 600;">{{ set.exercise.name }}</td>
+                    <td style="padding: 12px;">
+                        {% if set.weight > 0 %}
+                            <span style="background: #EFF6FF; color: var(--primary); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 700;">
+                                {{ set.weight }} kg x {{ set.reps }}
+                            </span>
+                        {% elif set.distance > 0 %}
+                            <span style="background: #ECFDF5; color: #059669; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 700;">
+                                {{ set.distance }} km / {{ set.time }} min
+                            </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="bento-card span-2" style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111827; color: white;">
+        {% if session.photo_filename %}
+            <img src="{{ url_for('static', filename='uploads/' + session.photo_filename) }}" alt="Foto del entreno" style="max-width: 100%; max-height: 400px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <a href="{{ url_for('static', filename='uploads/' + session.photo_filename) }}" target="_blank" style="margin-top: 15px; color: white; text-decoration: underline; font-size: 0.9rem;">
+                Ver tamaño completo
+            </a>
+        {% else %}
+            <i class="fas fa-camera-slash" style="font-size: 4rem; opacity: 0.2; margin-bottom: 20px;"></i>
+            <div style="opacity: 0.6;">Sin foto adjunta</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

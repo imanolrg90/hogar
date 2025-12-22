@@ -250,6 +250,31 @@
         .stat-box { flex-direction: row; justify-content: space-between; width: 100%; padding: 10px; background: #f9fafb; margin-top: 5px; }
         .mobile-hide { display: none; }
     }
+    .btn-add-circle, 
+    .btn-remove-chip {
+        display: none !important; /* Force hiding */
+    }
+
+    /* Cuando el contenedor padre tiene la clase 'editing-mode', los mostramos */
+    .menu-container.editing-mode .btn-add-circle {
+        display: flex !important;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .menu-container.editing-mode .btn-remove-chip {
+        display: inline-block !important;
+        cursor: pointer;
+    }
+    
+    /* Botón de editar activo (visual) */
+    .btn-edit-active {
+        background-color: #fee2e2 !important; /* Un rojo suave */
+        color: #b91c1c !important;
+        border-color: #fca5a5 !important;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
 </style>
 
 <form method="POST" id="menuForm">
@@ -282,6 +307,11 @@
             </div>
 
             <div class="toolbar-right">
+                <button type="button" class="btn-secondary-outline" id="btnToggleEdit" onclick="toggleEditMode()" title="Activar/Desactivar Edición">
+                    <i class="fas fa-edit"></i> 
+                    <span class="desktop-only">Editar</span>
+                </button>
+
                 <button type="button" class="btn-secondary-outline" onclick="openModal()" title="Ver Lista de Compra">
                     <i class="fas fa-shopping-basket"></i> 
                     <span class="desktop-only">Lista</span>
@@ -293,7 +323,7 @@
             </div>
         </div>
 
-        <div class="menu-container">
+        <div class="menu-container" id="menuMainContainer">
             
             <div class="menu-content">
                 
@@ -459,7 +489,35 @@
     let currentDay = null;
     let currentType = null;
     let currentMode = 'recipe'; 
+    let isEditing = false;
 
+    function toggleEditMode() {
+        isEditing = !isEditing;
+        const container = document.getElementById('menuMainContainer');
+        const btn = document.getElementById('btnToggleEdit');
+        const icon = btn.querySelector('i');
+        const text = btn.querySelector('span');
+
+        if (isEditing) {
+            // Activar modo edición
+            container.classList.add('editing-mode');
+            btn.classList.add('btn-edit-active');
+            
+            // Cambiar aspecto del botón
+            icon.classList.remove('fa-edit');
+            icon.classList.add('fa-check');
+            text.innerText = 'Listo';
+        } else {
+            // Desactivar modo edición
+            container.classList.remove('editing-mode');
+            btn.classList.remove('btn-edit-active');
+            
+            // Restaurar botón
+            icon.classList.remove('fa-check');
+            icon.classList.add('fa-edit');
+            text.innerText = 'Editar';
+        }
+    }
     // --- MODAL DE LISTA DE COMPRA ---
     function openModal() {
         document.getElementById('shoppingModal').style.display = 'flex';

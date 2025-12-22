@@ -24,13 +24,13 @@
                 
                 <input type="text" name="note" class="form-control" placeholder="Notas del entreno..." style="width: 100%; padding: 10px;">
                 
-                <div style="background: #F0FDF4; padding: 10px; border-radius: 8px; border: 1px dashed #16A34A; display: flex; align-items: center; gap: 10px;">
-                    <i class="fas fa-camera" style="color: #16A34A;"></i>
-                    <label style="font-size: 0.9rem; font-weight: 600; color: #166534; cursor: pointer; flex: 1;">
-                        Adjuntar foto (opcional)
-                        <input type="file" name="photo" accept="image/*" style="display: block; margin-top: 5px; font-size: 0.8rem;">
-                    </label>
-                </div>
+<div class="file-upload-wrapper">
+    <div class="file-upload-btn">
+        <i class="fas fa-camera"></i>
+        <span>Adjuntar foto del entrenamiento (opcional)</span>
+    </div>
+    <input type="file" name="photo" accept="image/*" onchange="this.previousElementSibling.querySelector('span').innerText = this.files[0].name">
+</div>
             </div>
 
             <div style="background: #F8FAFC; padding: 15px; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 25px;">
@@ -39,13 +39,17 @@
                     <div style="flex: 100%; width: 100%;">
                         <select id="exerciseSelect" onchange="toggleInputs()" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #CBD5E1;">
                             {% for ex in exercises %}
-                                <option value="{{ ex.id }}" data-type="{{ 'Cardio' if ex.muscle_group == 'Cardio' else 'Strength' }}">
+                                <option value="{{ ex.id }}" 
+                                        data-type="{{ 'Cardio' if ex.muscle_group == 'Cardio' else 'Strength' }}"
+                                        data-desc="{{ ex.description or '' }}"
+                                        data-video="{{ ex.video_link or '' }}">
                                     {{ ex.name }}
                                 </option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div style="display: flex; gap: 5px; flex: 1;">
+
+                    <div style="display: flex; gap: 5px; flex: 1; margin-top: 5px;">
                         <input type="number" id="seriesInput" placeholder="Series" value="3" class="input-compact" style="flex: 0.8;">
                         <div id="inputsStrength" style="display: flex; gap: 5px; flex: 2; width: 100%;">
                             <input type="number" id="weightInput" placeholder="kg" step="0.5" class="input-compact">
@@ -56,7 +60,8 @@
                             <input type="number" id="timeInput" placeholder="min" class="input-compact">
                         </div>
                     </div>
-                    <button type="button" onclick="addSet()" class="action-key" style="width: 42px; min-width: 42px; display: flex; align-items: center; justify-content: center; padding: 0;">
+                    
+                    <button type="button" onclick="addSet()" class="action-key" style="width: 42px; min-width: 42px; display: flex; align-items: center; justify-content: center; padding: 0; margin-top: 5px;">
                         <i class="fas fa-plus"></i>
                     </button>
                 </div>
@@ -65,7 +70,7 @@
             <div id="setsList" style="display: flex; flex-direction: column; gap: 12px;"></div>
 
             <div id="emptyMsg" style="padding: 30px; text-align: center; color: var(--text-muted); font-style: italic; background: #F9FAFB; border-radius: 12px; border: 1px dashed #ddd; margin-top: 10px; display: none;">
-                Selecciona una rutina arriba para empezar.
+                Selecciona una rutina arriba o añade ejercicios manualmente.
             </div>
 
             <div style="margin-top: 30px;">
@@ -77,15 +82,37 @@
     </div>
 </form>
 
+<div id="descModal" class="modal-overlay">
+    <div class="modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
+            <div>
+                <h3 id="descModalTitle" style="margin: 0; color: #1E293B; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em;">Título</h3>
+                <span style="font-size: 0.85rem; color: #64748B; font-weight: 500;">Detalles técnicos y ejecución</span>
+            </div>
+            <button type="button" onclick="closeDescModal()" style="background: #F1F5F9; border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; color: #64748B; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                &times;
+            </button>
+        </div>
+        
+        <div style="background: #F8FAFC; padding: 25px; border-radius: 16px; border: 1px solid #E2E8F0;">
+            <p id="descModalText" style="margin: 0; font-size: 1.05rem; color: #334155; white-space: pre-wrap; line-height: 1.7; font-family: 'Inter', sans-serif;"></p>
+        </div>
+        
+        <div style="margin-top: 25px; display: flex; justify-content: flex-end;">
+            <button onclick="closeDescModal()" style="background: #1E293B; color: white; border: none; padding: 10px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; transition: transform 0.1s;">
+                Entendido
+            </button>
+        </div>
+    </div>
+</div>
+
 {% include "gym/log_workout_scripts.html" ignore missing %}
 <script>
-    // ... (PEGA AQUÍ EL SCRIPT DEL MENSAJE ANTERIOR) ...
     let sets = {{ preloaded_json|safe if preloaded_json else '[]' }};
     let activeIntervals = {};
     let currentTimerIndex = null;
-    const modal = document.getElementById('timerModal');
-    const modalDisplay = document.getElementById('modalTimerDisplay');
-    const modalTitle = document.getElementById('modalExerciseName');
+    
+    // --- LÓGICA DE CARGA ---
 
     function loadRoutine() {
         const id = document.getElementById('routineLoader').value;
@@ -94,11 +121,48 @@
 
     function toggleInputs() {
         const select = document.getElementById('exerciseSelect');
-        const type = select.options[select.selectedIndex].getAttribute('data-type');
+        const selectedOption = select.options[select.selectedIndex];
+        const type = selectedOption.getAttribute('data-type');
+        
         document.getElementById('inputsStrength').style.display = (type === 'Cardio') ? 'none' : 'flex';
         document.getElementById('inputsCardio').style.display = (type === 'Cardio') ? 'flex' : 'none';
     }
 
+    // --- AÑADIR SET Y CAPTURAR DATOS ---
+    function addSet() {
+        const select = document.getElementById('exerciseSelect');
+        const selectedOption = select.options[select.selectedIndex];
+        const type = selectedOption.getAttribute('data-type');
+        
+        // CAPTURAR INFO (Descripción y Video)
+        const desc = selectedOption.getAttribute('data-desc');
+        const video = selectedOption.getAttribute('data-video');
+
+        let newItem = { 
+            id: select.value, 
+            name: selectedOption.text, 
+            type: type, 
+            series: document.getElementById('seriesInput').value || 3, 
+            weight:'', reps:'', distance:'', time:'', rest:90,
+            
+            // Guardamos la info en el objeto
+            description: desc || '',
+            videoLink: video || ''
+        };
+
+        if (type === 'Cardio') { 
+            newItem.distance = document.getElementById('distInput').value; 
+            newItem.time = document.getElementById('timeInput').value; 
+        } else { 
+            newItem.weight = document.getElementById('weightInput').value; 
+            newItem.reps = document.getElementById('repsInput').value; 
+        }
+        
+        sets.push(newItem); 
+        renderList();
+    }
+
+    // --- RENDERIZAR LISTA (Aquí está la lógica de los iconos) ---
     function renderList() {
         const container = document.getElementById('setsList');
         const inputData = document.getElementById('workoutData');
@@ -119,12 +183,39 @@
             let hasData = (set.type === 'Cardio') ? (set.distance || set.time) : (set.weight && set.reps);
             if(hasData) { card.style.borderLeftColor = "#059669"; card.style.background = "#F0FDF4"; }
 
+            // === ZONA DE ICONOS ===
+            let iconsHtml = '';
+
+            // 1. Icono de YOUTUBE (Si hay link) -> Abre nueva pestaña
+            if (set.videoLink) {
+                iconsHtml += `
+                <a href="${set.videoLink}" target="_blank" 
+                   class="icon-btn"
+                   style="color: #EF4444; margin-right: 8px; font-size: 1.4rem; text-decoration: none; display: flex; align-items: center; justify-content: center;" 
+                   title="Ver video en YouTube">
+                    <i class="fab fa-youtube"></i>
+                </a>`;
+            }
+
+            // 2. Icono de INFO/DESCRIPCIÓN (Si hay texto) -> Abre Modal interno
+            if (set.description) {
+                iconsHtml += `
+                <button type="button" onclick="showDescription(${index})" 
+                        class="icon-btn"
+                        style="background: none; border: none; color: #3B82F6; cursor: pointer; margin-right: 8px; font-size: 1.3rem; display: flex; align-items: center; justify-content: center;" 
+                        title="Leer técnica">
+                    <i class="fas fa-info-circle"></i>
+                </button>`;
+            }
+            // ======================
+
+            // Timer Logic
             let restHtml = '';
             if (set.rest) {
                 let badgeClass = "color:#6366F1; background:#EEF2FF; border:1px solid #C7D2FE;";
                 let icon = '<i class="fas fa-play" style="font-size:0.7em;"></i>';
                 let text = `${set.rest}s`;
-                let action = `startTimer(${index}, ${set.rest})`;
+                let action = `startTimer(${index}, ${set.rest})`; 
                 const now = Date.now();
                 if (set.timerEnd && set.timerEnd > now) {
                     badgeClass = "color:#D97706; background:#FEF3C7; border:1px solid #FCD34D;";
@@ -136,6 +227,7 @@
                 restHtml = `<div onclick="${action}" id="timer-badge-${index}" style="cursor:pointer; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; ${badgeClass}">${icon} <span>${text}</span></div>`;
             }
 
+            // Inputs
             let inputsHtml = '';
             const seriesInput = `<div class="input-wrapper"><input type="number" value="${set.series}" placeholder="Sets" onchange="updateSet(${index}, 'series', this.value)" class="input-compact" style="background:#F3F4F6;"><span class="floating-label">SETS</span></div>`;
 
@@ -145,44 +237,282 @@
                 inputsHtml = `${seriesInput}<div class="input-wrapper"><input type="number" value="${set.weight}" placeholder="kg" step="0.5" onchange="updateSet(${index}, 'weight', this.value)" class="input-compact"><span class="floating-label">KG</span></div><div class="input-wrapper"><input type="number" value="${set.reps}" placeholder="reps" onchange="updateSet(${index}, 'reps', this.value)" class="input-compact"><span class="floating-label">REPS</span></div>`;
             }
 
-            card.innerHTML = `<div class="set-header"><div class="set-title"><span>${set.name}</span></div><div style="display:flex; align-items:center; gap:10px;">${restHtml}<button type="button" class="btn-delete" onclick="removeSet(${index})"><i class="fas fa-times"></i></button></div></div><div class="set-inputs">${inputsHtml}</div>`;
+            card.innerHTML = `
+                <div class="set-header">
+                    <div class="set-title"><span>${set.name}</span></div>
+                    <div style="display:flex; align-items:center;">
+                        ${iconsHtml} ${restHtml}
+                        <button type="button" class="btn-delete" onclick="removeSet(${index})" style="margin-left: 10px;"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+                <div class="set-inputs">${inputsHtml}</div>`;
+            
             container.appendChild(card);
         });
+        
         inputData.value = JSON.stringify(sets);
     }
-
-    function addSet() {
-        const select = document.getElementById('exerciseSelect');
-        const type = select.options[select.selectedIndex].getAttribute('data-type');
-        let newItem = { id: select.value, name: select.options[select.selectedIndex].text, type: type, series: document.getElementById('seriesInput').value || 3, weight:'', reps:'', distance:'', time:'', rest:90 };
-        if (type === 'Cardio') { newItem.distance = document.getElementById('distInput').value; newItem.time = document.getElementById('timeInput').value; } else { newItem.weight = document.getElementById('weightInput').value; newItem.reps = document.getElementById('repsInput').value; }
-        sets.push(newItem); renderList();
-        document.getElementById('weightInput').value = ''; document.getElementById('repsInput').value = '';
-    }
+    
     function updateSet(i, f, v) { sets[i][f] = v; }
     function removeSet(i) { sets.splice(i, 1); renderList(); }
+    
+    // --- FUNCIONES MODAL TEXTO (DESCRIPCIÓN) ---
+    function showDescription(index) {
+        const set = sets[index];
+        document.getElementById('descModalTitle').innerText = set.name;
+        document.getElementById('descModalText').innerText = set.description || "Sin notas disponibles.";
+        document.getElementById('descModal').style.display = 'flex'; // Flex para centrar
+    }
+
+    function closeDescModal() {
+        document.getElementById('descModal').style.display = 'none';
+    }
+
+    // --- FUNCIONES TIMER (Standard) ---
     function startTimer(i, s) { sets[i].timerEnd = Date.now() + (s * 1000); openTimerModal(i); renderList(); }
-    function openTimerModal(i) { currentTimerIndex = i; modal.style.display = 'flex'; modalTitle.innerText = sets[i].name; updateModalDisplay(); }
-    function closeTimerModal() { modal.style.display = 'none'; currentTimerIndex = null; }
-    function finishTimerNow() { if(currentTimerIndex!==null){ sets[currentTimerIndex].timerEnd = Date.now()-100; closeTimerModal(); renderList(); } }
-    function adjustTime(s) { if(currentTimerIndex!==null){ sets[currentTimerIndex].timerEnd += (s*1000); updateModalDisplay(); } }
-    function updateModalDisplay() { if(currentTimerIndex===null) return; const rem = Math.max(0, Math.ceil((sets[currentTimerIndex].timerEnd - Date.now())/1000)); modalDisplay.innerText = formatTime(rem); }
-    function ensureTimerRunning(i) { if(activeIntervals[i]) return; activeIntervals[i] = setInterval(()=>{ const end = sets[i].timerEnd; const now = Date.now(); if(!end || now >= end) { clearInterval(activeIntervals[i]); delete activeIntervals[i]; if(currentTimerIndex===i) closeTimerModal(); renderList(); return; } const badge = document.getElementById(`timer-badge-${i}`); if(badge) badge.querySelector('span').innerText = formatTime(Math.ceil((end-now)/1000)); if(currentTimerIndex===i) updateModalDisplay(); }, 1000); }
+    function openTimerModal(i) { 
+        currentTimerIndex = i; 
+        if(document.getElementById('timerModal')) {
+            document.getElementById('timerModal').style.display = 'flex'; 
+            if(document.getElementById('modalExerciseName')) document.getElementById('modalExerciseName').innerText = sets[i].name; 
+            updateModalDisplay(); 
+        }
+    }
+    function updateModalDisplay() { 
+        if(currentTimerIndex===null || !document.getElementById('modalTimerDisplay')) return; 
+        const rem = Math.max(0, Math.ceil((sets[currentTimerIndex].timerEnd - Date.now())/1000)); 
+        document.getElementById('modalTimerDisplay').innerText = formatTime(rem); 
+    }
+    function ensureTimerRunning(i) { 
+        if(activeIntervals[i]) return; 
+        activeIntervals[i] = setInterval(()=>{ 
+            const end = sets[i].timerEnd; 
+            const now = Date.now(); 
+            if(!end || now >= end) { 
+                clearInterval(activeIntervals[i]); 
+                delete activeIntervals[i]; 
+                renderList(); 
+                return; 
+            } 
+            const badge = document.getElementById(`timer-badge-${i}`); 
+            if(badge) badge.querySelector('span').innerText = formatTime(Math.ceil((end-now)/1000)); 
+            if(currentTimerIndex===i) updateModalDisplay(); 
+        }, 1000); 
+    }
     function formatTime(s) { let m = Math.floor(s/60); let sec = s%60; return `${m}:${sec<10?'0'+sec:sec}`; }
 
     toggleInputs();
     renderList();
 </script>
-
 <style>
-    .input-compact { width: 100%; padding: 12px 5px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 1rem; text-align: center; background: white; font-weight: 600; color: var(--text-main); }
-    .set-card { background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); display: flex; flex-direction: column; gap: 12px; position: relative; border-left: 4px solid var(--primary); }
-    .set-header { display: flex; justify-content: space-between; align-items: center; }
-    .set-title { font-weight: 700; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
-    .set-inputs { display: grid; grid-template-columns: 1fr 1.5fr 1.5fr; gap: 8px; align-items: center; }
-    .floating-label { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 0.65rem; font-weight: 800; color: #94A3B8; pointer-events: none; }
+    :root {
+        --primary: #10B981;       /* Verde solo para acciones principales */
+        --primary-dark: #059669;
+        --text-main: #334155;     /* Gris oscuro elegante */
+        --text-muted: #94A3B8;    /* Gris suave */
+        --bg-body: #F1F5F9;       /* Fondo general muy claro */
+        --card-bg: #FFFFFF;
+        --border-color: #E2E8F0;
+        --radius: 12px;
+    }
+
+    body {
+        background-color: var(--bg-body);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: var(--text-main);
+    }
+
+    /* TÍTULOS */
+    .header-section h1 {
+        font-weight: 700;
+        color: #1E293B;
+        margin-bottom: 20px;
+        font-size: 1.5rem;
+    }
+
+    /* TARJETA PRINCIPAL (Bento) */
+    .bento-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 25px !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    }
+
+    /* INPUTS GENERALES (Notas, Selects) */
+    select, input[type="text"], .form-control {
+        background-color: #F8FAFC;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        padding: 10px 15px;
+        font-size: 0.95rem;
+        color: var(--text-main);
+        width: 100%;
+        transition: all 0.2s;
+    }
+
+    select:focus, input:focus, .form-control:focus {
+        background: #fff;
+        border-color: var(--primary);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    /* --- NUEVO ESTILO: ADJUNTAR FOTO (Minimalista) --- */
+    .file-upload-wrapper {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        width: 100%;
+    }
+    
+    .file-upload-btn {
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        background-color: white;
+        padding: 10px 15px;
+        border-radius: var(--radius);
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.2s;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .file-upload-btn:hover {
+        background-color: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .file-upload-btn i {
+        color: var(--text-muted); /* Icono gris discreto */
+    }
+
+    /* El input real está oculto pero funcional */
+    .file-upload-wrapper input[type=file] {
+        font-size: 100px;
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* BOTONES DE ACCIÓN */
+    .action-key {
+        border-radius: var(--radius);
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.1s;
+    }
+    
+    .action-key.dark {
+        background: #334155;
+        color: white;
+    }
+
+    /* Botón Terminar (Verde Sólido pero limpio) */
+    button[type="submit"].action-key {
+        background: var(--primary);
+        color: white;
+        font-size: 1.1rem;
+        padding: 14px;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    button[type="submit"].action-key:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+
+    /* --- TARJETAS DE SETS (Diseño en una línea) --- */
+    .set-card {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--primary) !important;
+        border-radius: 12px;
+        padding: 12px 15px; /* Menos padding vertical */
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .set-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2px;
+    }
+
+    .set-title span {
+        font-weight: 600;
+        font-size: 1rem;
+        color: var(--text-main);
+    }
+
+    /* GRID PARA INPUTS EN UNA LÍNEA */
+    .set-inputs {
+        display: grid;
+        grid-template-columns: 80px 1fr 1fr; /* Sets fijo, resto flexible */
+        gap: 10px;
+        align-items: center;
+    }
+
+    /* INPUTS COMPACTOS (Estilo limpio) */
+    .input-compact {
+        background: #F8FAFC;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 8px 5px; /* Padding reducido para que sea bajito */
+        text-align: center;
+        font-weight: 600;
+        color: var(--text-main);
+        width: 100%;
+        font-size: 0.95rem;
+    }
+    
+    .input-compact:focus {
+        background: white;
+        border-color: var(--primary);
+        outline: none;
+    }
+    
     .input-wrapper { position: relative; }
-    .btn-delete { background: none; border: none; color: #EF4444; cursor: pointer; padding: 5px; }
-    @media (max-width: 768px) { .floating-label { display: none; } .set-inputs { gap: 5px; } }
+
+    /* ICONOS */
+    .icon-btn {
+        transition: opacity 0.2s;
+        opacity: 0.8;
+    }
+    .icon-btn:hover { opacity: 1; }
+
+    /* MODAL */
+    .modal-overlay {
+        position: fixed;
+        top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 2000;
+        display: none;
+        align-items: center; justify-content: center;
+    }
+    .modal-content {
+        background: white;
+        padding: 25px;
+        border-radius: 16px;
+        width: 90%; max-width: 500px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-width: 768px) { 
+        .floating-label { display: none; } 
+        .set-inputs { gap: 8px; } 
+    }
 </style>
 {% endblock %}

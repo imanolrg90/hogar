@@ -617,6 +617,8 @@ def gym_dashboard():
     
     # Pasamos 'routines' a la plantilla
     return render_template('gym/gymdashboard.html', sessions=recent_sessions, exercises=exercises, routines=routines)
+
+
 @app.route('/gym/exercises', methods=['GET', 'POST'])
 @login_required
 def gym_exercises():
@@ -625,6 +627,10 @@ def gym_exercises():
         new_ex = Exercise(
             name=form.name.data,
             muscle_group=form.muscle_group.data,
+            # --- NUEVOS CAMPOS ---
+            description=form.description.data,
+            video_link=form.video_link.data,
+            # ---------------------
             user_id=current_user.id
         )
         db.session.add(new_ex)
@@ -634,7 +640,6 @@ def gym_exercises():
     
     exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.muscle_group, Exercise.name).all()
     return render_template('gym/exercises.html', form=form, exercises=exercises)
-
 @app.route('/gym/log', methods=['GET', 'POST'])
 @login_required
 def gym_log():
@@ -673,6 +678,11 @@ def gym_log():
                     'type': 'Cardio' if is_cardio else 'Strength',
                     
                     'series': ex_assoc.series if ex_assoc.series else 3,
+
+                    # --- NUEVO: AÑADIMOS INFO PARA EL MODAL DE VIDEO ---
+                    'description': ex_assoc.exercise.description or '',
+                    'videoLink': ex_assoc.exercise.video_link or '',
+                    # ---------------------------------------------------
                     
                     # Usamos los valores históricos aquí
                     'weight': def_weight, 
@@ -687,7 +697,7 @@ def gym_log():
         data_json = request.form.get('workout_data')
         note = request.form.get('note')
         
-        # Procesar FOTO (se mantiene igual)
+        # Procesar FOTO
         photo_file = request.files.get('photo')
         filename = None
         if photo_file and photo_file.filename != '':
@@ -739,7 +749,6 @@ def gym_log():
                            exercises=exercises, 
                            routines=routines, 
                            preloaded_json=json.dumps(preloaded_sets))
-
 
 @app.route('/gym/history')
 @login_required
@@ -973,6 +982,12 @@ def edit_exercise(id):
     
     ex.name = request.form.get('name')
     ex.muscle_group = request.form.get('muscle_group')
+    
+    # --- NUEVOS CAMPOS ---
+    ex.description = request.form.get('description')
+    ex.video_link = request.form.get('video_link')
+    # ---------------------
+
     db.session.commit()
     flash('Ejercicio actualizado.', 'success')
     return redirect(url_for('gym_exercises'))

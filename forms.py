@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, FloatField, SubmitField, FieldList, FormField, SelectField
+from wtforms import StringField, FloatField, SubmitField, FieldList, FormField, SelectField, TextAreaField # <--- Añadir TextAreaField
 from wtforms.validators import DataRequired, NumberRange
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, BooleanField
@@ -45,6 +45,8 @@ class ExerciseForm(FlaskForm):
         ('Bíceps', 'Bíceps'), ('Tríceps', 'Tríceps'), 
         ('Abdominales', 'Abdominales'), ('Cardio', 'Cardio'), ('Otro', 'Otro')
     ])
+    description = TextAreaField('Descripción / Notas Técnicas')
+    video_link = StringField('Link Video (Youtube)')
     submit = SubmitField('Guardar Ejercicio')
 
 class RoutineForm(FlaskForm):

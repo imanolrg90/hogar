@@ -36,7 +36,7 @@
                                style="color: var(--primary); margin-right: 10px; text-decoration: none;">
                                 <i class="fas fa-chart-line"></i>
                             </a>
-                            <button onclick="openEditModal('{{ ex.id }}', '{{ ex.name }}', '{{ ex.muscle_group }}')" 
+                            <button onclick="openEditModal('{{ ex.id }}', '{{ ex.name }}', '{{ ex.muscle_group }}', `{{ ex.description or '' }}`, '{{ ex.video_link or '' }}')"
                                     title="Editar" style="border:none; background:none; cursor:pointer; color:#F59E0B; margin-right: 10px;">
                                 <i class="fas fa-edit"></i>
                             </button>
@@ -71,6 +71,15 @@
                 <label>Músculo</label>
                 {{ form.muscle_group(class="form-control", id="inputMuscle", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;") }}
             </div>
+            <div style="margin-bottom: 15px;">
+    <label>Descripción / Técnica</label>
+    {{ form.description(class="form-control", id="inputDesc", rows="3", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit;") }}
+</div>
+
+<div style="margin-bottom: 25px;">
+    <label>Link Youtube</label>
+    {{ form.video_link(class="form-control", id="inputLink", placeholder="https://youtube.com/...", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;") }}
+</div>
             
             <button type="submit" class="action-key dark">Guardar</button>
         </form>
@@ -84,20 +93,22 @@
 </style>
 
 <script>
-    function openNewModal() {
+   function openNewModal() {
         document.getElementById('modalTitle').innerText = 'Nuevo Ejercicio';
-        document.getElementById('exerciseForm').action = "{{ url_for('gym_exercises') }}"; // Ruta crear
+        document.getElementById('exerciseForm').action = "{{ url_for('gym_exercises') }}";
         document.getElementById('inputName').value = '';
-        // Reset select (opcional)
+        document.getElementById('inputDesc').value = ''; // Limpiar
+        document.getElementById('inputLink').value = ''; // Limpiar
         document.getElementById('exerciseModal').style.display = 'flex';
     }
 
-    function openEditModal(id, name, muscle) {
+    function openEditModal(id, name, muscle, desc, link) {
         document.getElementById('modalTitle').innerText = 'Editar Ejercicio';
-        // Construir ruta de edit dinámicamente
         document.getElementById('exerciseForm').action = "/gym/exercises/edit/" + id;
         document.getElementById('inputName').value = name;
         document.getElementById('inputMuscle').value = muscle;
+        document.getElementById('inputDesc').value = desc; // Cargar
+        document.getElementById('inputLink').value = link; // Cargar
         document.getElementById('exerciseModal').style.display = 'flex';
     }
 

@@ -160,6 +160,8 @@ class Exercise(db.Model):
     muscle_group = db.Column(db.String(50)) 
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     sets = db.relationship('WorkoutSet', backref='exercise', lazy=True)
+    description = db.Column(db.Text, nullable=True)
+    video_link = db.Column(db.String(255), nullable=True)
 
     @property
     def is_cardio(self):

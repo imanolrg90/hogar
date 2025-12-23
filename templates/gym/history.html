@@ -14,6 +14,7 @@
                     <tr>
                         <th style="padding: 20px; text-align: left;">Fecha</th>
                         <th style="padding: 20px; text-align: left;">Resumen</th>
+                        <th style="padding: 20px; text-align: center;">Energía</th>
                         <th style="padding: 20px; text-align: center;">Foto</th>
                         <th style="padding: 20px; text-align: right;">Acción</th>
                     </tr>
@@ -35,6 +36,17 @@
                             </div>
                             {% endif %}
                         </td>
+                        
+                        <td style="padding: 20px; text-align: center;">
+                            {% if session.total_calories and session.total_calories > 0 %}
+                                <span style="background: #FFF7ED; color: #C2410C; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; border: 1px solid #FFEDD5; display: inline-flex; align-items: center; gap: 5px;">
+                                    <i class="fas fa-fire-alt"></i> {{ session.total_calories }}
+                                </span>
+                            {% else %}
+                                <span style="color: #E5E7EB; font-size: 1.2rem;">&middot;</span>
+                            {% endif %}
+                        </td>
+
                         <td style="padding: 20px; text-align: center;">
                             {% if session.photo_filename %}
                                 <i class="fas fa-camera" style="color: #059669; font-size: 1.2rem;" title="Foto adjunta"></i>
@@ -50,7 +62,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" style="padding: 40px; text-align: center; color: #9CA3AF; font-style: italic;">
+                        <td colspan="5" style="padding: 40px; text-align: center; color: #9CA3AF; font-style: italic;">
                             No hay entrenamientos registrados.
                         </td>
                     </tr>

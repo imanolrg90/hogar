@@ -73,9 +73,16 @@
                 <div style="font-size: 1.5rem; font-weight: 700; line-height: 1.2; margin-bottom: 5px;">
                     Completado
                 </div>
-                <div style="color: #94a3b8; font-size: 0.85rem;">
+                <div style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 5px;">
                     {{ workout.summary or "Sesión registrada" }}
                 </div>
+                
+                {% if workout.total_calories > 0 %}
+                <div style="display: inline-block; background: rgba(34, 211, 238, 0.1); color: #22d3ee; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">
+                    <i class="fas fa-fire-alt"></i> -{{ workout.total_calories }} kcal
+                </div>
+                {% endif %}
+
             {% else %}
                 <div style="font-size: 1.1rem; font-weight: 600; color: #e2e8f0; margin-bottom: 10px;">
                     Pendiente
@@ -109,6 +116,39 @@
                 </a>
             {% endif %}
         </div>
+    </div>
+
+    <div class="bento-card span-2" style="background: white; border-left: 5px solid #8B5CF6;">
+        <div class="widget-title" style="color: #7C3AED; display: flex; justify-content: space-between; align-items: center;">
+            <span><i class="fas fa-chart-line"></i> Evolución Total</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400;">Desde el inicio</span>
+        </div>
+
+        {% if progress %}
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px;">
+                {% for item in progress %}
+                <div style="background: #F8FAFC; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #E2E8F0;">
+                    <div style="font-size: 0.8rem; color: #64748B; margin-bottom: 5px;">{{ item.label }}</div>
+                    
+                    <div style="font-size: 1.1rem; font-weight: 700; 
+                                color: {% if item.diff < 0 %}#10B981{% elif item.diff > 0 %}#3B82F6{% else %}#64748B{% endif %};">
+                        
+                        {% if item.diff > 0 %}
+                            <i class="fas fa-arrow-up" style="font-size: 0.8rem;"></i>
+                        {% elif item.diff < 0 %}
+                            <i class="fas fa-arrow-down" style="font-size: 0.8rem;"></i>
+                        {% endif %}
+                        
+                        {{ item.diff|abs }} <small style="font-size: 0.7em; color: #94A3B8;">{{ item.unit }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div style="margin-top: 15px; color: var(--text-muted); font-size: 0.9rem;">
+                No hay suficientes datos para calcular el progreso aún.
+            </div>
+        {% endif %}
     </div>
 
 </div>

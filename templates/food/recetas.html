@@ -48,9 +48,12 @@
                         {% for receta in recetas %}
                         <tr>
                             <td data-val="{{ receta.title | lower }}">
-                                <div class="recipe-name">{{ receta.title }}</div>
-                                <div class="recipe-desc">{{ receta.description or 'Sin descripción' }}</div>
-                            </td>
+    <div class="recipe-name">{{ receta.title }}</div>
+    <div class="recipe-desc">{{ receta.description or 'Sin descripción' }}</div>
+    <div style="font-size: 0.7rem; color: #6366f1; margin-top: 2px;">
+        <i class="fas fa-user"></i> {{ receta.user.username }}
+    </div>
+</td>
                             
                             <td style="text-align: right;" data-val="{{ receta.total_stats.kcal }}">
                                 <span class="badge-kcal">

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Administrar Usuarios{% endblock %}
+
+{% block content %}
+<div class="header-section" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div>
+        <h1 style="margin: 0;">Gestión de Usuarios</h1>
+        <p style="color: var(--text-muted); margin-top: 5px;">Control de acceso y perfiles físicos.</p>
+    </div>
+    
+    <a href="{{ url_for('create_user_admin') }}" class="action-key dark" style="text-decoration: none; padding: 10px 20px; display: inline-flex; align-items: center; gap: 8px;">
+        <i class="fas fa-user-plus"></i> 
+        <span>Nuevo Usuario</span>
+    </a>
+</div>
+
+<div class="bento-card" style="background: white; padding: 0; overflow: hidden; border: 1px solid #E2E8F0;">
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; min-width: 700px;">
+            <thead style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0;">
+                <tr>
+                    <th style="padding: 15px; text-align: left; color: #64748B; font-weight: 600; font-size: 0.85rem; text-transform: uppercase;">ID</th>
+                    <th style="padding: 15px; text-align: left; color: #64748B; font-weight: 600; font-size: 0.85rem; text-transform: uppercase;">Usuario</th>
+                    <th style="padding: 15px; text-align: left; color: #64748B; font-weight: 600; font-size: 0.85rem; text-transform: uppercase;">Email</th>
+                    <th style="padding: 15px; text-align: left; color: #64748B; font-weight: 600; font-size: 0.85rem; text-transform: uppercase;">Datos Físicos</th>
+                    <th style="padding: 15px; text-align: center; color: #64748B; font-weight: 600; font-size: 0.85rem; text-transform: uppercase;">Rol</th>
+                    <th style="padding: 15px; text-align: right; color: #64748B; font-weight: 600; font-size: 0.85rem; text-transform: uppercase;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr style="border-bottom: 1px solid #F1F5F9; transition: background 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='transparent'">
+                    
+                    <td style="padding: 15px; color: #94A3B8; font-family: monospace;">#{{ user.id }}</td>
+                    
+                    <td style="padding: 15px;">
+                        <div style="font-weight: 600; color: var(--text-main);">{{ user.username }}</div>
+                        {% if user.id == current_user.id %}
+                            <span style="font-size: 0.75rem; color: #3B82F6; font-weight: 500;">(Tú)</span>
+                        {% endif %}
+                    </td>
+                    
+                    <td style="padding: 15px; color: var(--text-muted);">{{ user.email }}</td>
+                    
+                    <td style="padding: 15px;">
+                        {% if user.basal_metabolism and user.basal_metabolism > 0 %}
+                            <div style="font-size: 0.85rem; color: #059669;">
+                                <i class="fas fa-fire-alt"></i> {{ user.basal_metabolism|round|int }} kcal
+                            </div>
+                            <div style="font-size: 0.75rem; color: #94A3B8;">
+                                Obj: {{ user.target_weight or 'N/A' }}kg
+                            </div>
+                        {% else %}
+                            <span style="font-size: 0.8rem; color: #CBD5E1; font-style: italic;">Sin datos</span>
+                        {% endif %}
+                        </td>
+                    
+                    <td style="padding: 15px; text-align: center;">
+                        {% if user.is_admin %}
+                            <span style="background: #DEF7EC; color: #03543F; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; border: 1px solid #BCF0DA;">ADMIN</span>
+                        {% else %}
+                            <span style="background: #F3F4F6; color: #374151; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; border: 1px solid #E5E7EB;">USUARIO</span>
+                        {% endif %}
+                    </td>
+                    
+                    <td style="padding: 15px; text-align: right;">
+                        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                            <a href="{{ url_for('edit_user_admin', id=user.id) }}" 
+                               style="color: #F59E0B; font-size: 1.1rem; padding: 5px;" 
+                               title="Editar Perfil y Rol">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            
+                            {% if user.id != current_user.id %}
+                                <a href="{{ url_for('delete_user', id=user.id) }}" 
+                                   onclick="return confirm('¿Estás seguro de eliminar a {{ user.username }}? Se borrarán TODOS sus datos.')"
+                                   style="color: #EF4444; font-size: 1.1rem; padding: 5px;" 
+                                   title="Eliminar Usuario">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
+                            {% else %}
+                                <span style="color: #E2E8F0; font-size: 1.1rem; padding: 5px; cursor: not-allowed;" title="No puedes eliminarte a ti mismo">
+                                    <i class="fas fa-trash-alt"></i>
+                                </span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

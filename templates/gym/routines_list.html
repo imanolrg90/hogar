@@ -47,8 +47,11 @@
                     {% for r in routines %}
                     <tr style="transition: background 0.2s;">
                         <td style="padding: 20px 30px; font-weight: 600; color: var(--text-main);">
-                            {{ r.name }}
-                        </td>
+    {{ r.name }}
+    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400; margin-top: 4px;">
+        Creada por: {{ r.user.username }}
+    </div>
+</td>
                         
                         <td style="padding: 20px; color: var(--text-muted); font-size: 0.9rem;">
                             {{ r.description or "-" }}

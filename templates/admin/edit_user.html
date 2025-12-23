@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <h1>{{ title }}</h1>
+    <a href="{{ url_for('admin_users') }}" style="color: var(--text-muted); text-decoration: none;">&larr; Volver a la lista</a>
+</div>
+
+<div class="bento-card" style="background: white; padding: 30px; max-width: 800px; margin: 0 auto;">
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div style="grid-column: 1 / -1; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; color: #7C3AED; font-weight: 600;">
+                Datos de Cuenta
+            </div>
+
+            <div>
+                {{ form.username.label(style="display:block; font-weight:600; margin-bottom:5px; color:#475569;") }}
+                {{ form.username(class="form-control", style="width:100%; padding:10px; border-radius:8px; border:1px solid #CBD5E1;") }}
+            </div>
+            <div>
+                {{ form.email.label(style="display:block; font-weight:600; margin-bottom:5px; color:#475569;") }}
+                {{ form.email(class="form-control", style="width:100%; padding:10px; border-radius:8px; border:1px solid #CBD5E1;") }}
+            </div>
+            <div>
+                {{ form.password.label(style="display:block; font-weight:600; margin-bottom:5px; color:#475569;") }}
+                {{ form.password(class="form-control", style="width:100%; padding:10px; border-radius:8px; border:1px solid #CBD5E1;") }}
+                <small style="color:#94A3B8;">Opcional al editar.</small>
+            </div>
+            <div style="display: flex; align-items: center; margin-top: 25px;">
+                {{ form.is_admin() }} 
+                <span style="margin-left: 10px;">{{ form.is_admin.label }}</span>
+            </div>
+
+            <div style="grid-column: 1 / -1; margin: 20px 0 10px 0; border-bottom: 1px solid #eee; padding-bottom: 5px; color: #2563EB; font-weight: 600;">
+                Perfil Físico
+            </div>
+
+            <div>
+                {{ form.gender.label(style="display:block; font-weight:600; margin-bottom:5px; color:#475569;") }}
+                {{ form.gender(class="form-control", style="width:100%; padding:10px; border-radius:8px; border:1px solid #CBD5E1;") }}
+            </div>
+            <div>
+                {{ form.age.label(style="display:block; font-weight:600; margin-bottom:5px; color:#475569;") }}
+                {{ form.age(class="form-control", type="number", style="width:100%; padding:10px; border-radius:8px; border:1px solid #CBD5E1;") }}
+            </div>
+            <div>
+                {{ form.height.label(style="display:block; font-weight:600; margin-bottom:5px; color:#475569;") }}
+                {{ form.height(class="form-control", type="number", step="0.01", style="width:100%; padding:10px; border-radius:8px; border:1px solid #CBD5E1;") }}
+            </div>
+            <div>
+                {{ form.weight.label(style="display:block; font-weight:600; margin-bottom:5px; color:#475569;") }}
+                {{ form.weight(class="form-control", type="number", step="0.01", style="width:100%; padding:10px; border-radius:8px; border:1px solid #CBD5E1;") }}
+            </div>
+            <div>
+                {{ form.target_weight.label(style="display:block; font-weight:600; margin-bottom:5px; color:#475569;") }}
+                {{ form.target_weight(class="form-control", type="number", step="0.01", style="width:100%; padding:10px; border-radius:8px; border:1px solid #CBD5E1;") }}
+            </div>
+
+            {% if user_bmr %}
+            <div style="background: #EFF6FF; padding: 15px; border-radius: 8px; border: 1px solid #BFDBFE; display: flex; flex-direction: column; justify-content: center;">
+                <span style="font-size: 0.8rem; color: #1E40AF; font-weight: 700;">METABOLISMO BASAL (Calculado)</span>
+                <span style="font-size: 1.5rem; font-weight: 800; color: #2563EB;">{{ user_bmr|round|int }} <small style="font-size: 0.9rem;">kcal/día</small></span>
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 30px; text-align: right;">
+            {{ form.submit(class="action-key dark", style="padding: 12px 25px; font-size: 1rem; cursor: pointer;") }}
+        </div>
+    </form>
+</div>
+{% endblock %}

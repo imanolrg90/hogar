@@ -380,9 +380,23 @@
                     </div>
                     {% endfor %}
 
-                    <div class="stat-box kcal">
-                        {{ dia_menu.daily_stats.kcal }}
-                    </div>
+                    <div class="stat-box kcal" style="justify-content: center; line-height: 1.1;">
+    
+    {% set consumido = dia_menu.daily_stats.kcal %}
+    {% set objetivo = current_user.basal_metabolism %}
+    {% set me_he_pasado = objetivo and consumido > objetivo %}
+
+    <span style="font-size: 1rem; color: {% if me_he_pasado %}#DC2626{% else %}inherit{% endif %}; font-weight: {% if me_he_pasado %}800{% else %}700{% endif %};">
+        {{ consumido }}
+        {% if me_he_pasado %} <i class="fas fa-exclamation-circle" style="font-size: 0.7em;"></i>{% endif %}
+    </span>
+    
+    {% if objetivo %}
+        <div style="font-size: 0.65rem; color: #92400e; margin-top: 2px; font-weight: 500; border-top: 1px solid rgba(0,0,0,0.1); width: 80%; text-align: center;">
+            obj: {{ objetivo|int }}
+        </div>
+    {% endif %}
+</div>
                     <div class="stat-box price">
                         {{ "%.2f"|format(dia_menu.daily_stats.price) }}€
                     </div>

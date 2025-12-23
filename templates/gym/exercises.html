@@ -23,7 +23,7 @@
                     <tr style="text-align: left; border-bottom: 2px solid #F3F4F6; color: var(--text-muted);">
                         <th style="padding: 12px;">Nombre</th>
                         <th style="padding: 12px;">Músculo</th>
-                        <th style="padding: 12px; text-align: right;">Acciones</th>
+                        <th style="padding: 12px; text-align: right;">Quema Est.</th> <th style="padding: 12px; text-align: right;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="exercisesTableBody">
@@ -31,15 +31,27 @@
                     <tr style="border-bottom: 1px solid #F9FAFB;">
                         <td style="padding: 12px; font-weight: 600;">{{ ex.name }}</td>
                         <td style="padding: 12px;">{{ ex.muscle_group }}</td>
+                        
+                        <td style="padding: 12px; text-align: right; color: #64748B; font-size: 0.85rem;">
+                            {% if ex.burn_rate and ex.burn_rate > 0 %}
+                                <i class="fas fa-fire" style="color: #F59E0B; font-size: 0.8rem;"></i> {{ ex.burn_rate }} 
+                                <span style="font-size: 0.75rem;">{{ 'kcal/min' if ex.muscle_group == 'Cardio' else 'kcal/rep' }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
                         <td style="padding: 12px; text-align: right; white-space: nowrap;">
                             <a href="{{ url_for('gym_progress', exercise_id=ex.id) }}" title="Ver Progreso"
                                style="color: var(--primary); margin-right: 10px; text-decoration: none;">
                                 <i class="fas fa-chart-line"></i>
                             </a>
-                            <button onclick="openEditModal('{{ ex.id }}', '{{ ex.name }}', '{{ ex.muscle_group }}', `{{ ex.description or '' }}`, '{{ ex.video_link or '' }}')"
+                            
+                            <button onclick="openEditModal('{{ ex.id }}', '{{ ex.name }}', '{{ ex.muscle_group }}', `{{ ex.description or '' }}`, '{{ ex.video_link or '' }}', '{{ ex.burn_rate or 0 }}')"
                                     title="Editar" style="border:none; background:none; cursor:pointer; color:#F59E0B; margin-right: 10px;">
                                 <i class="fas fa-edit"></i>
                             </button>
+                            
                             <a href="{{ url_for('delete_exercise', id=ex.id) }}" 
                                onclick="return confirm('¿Seguro que quieres borrar este ejercicio?')"
                                title="Borrar" style="color: #EF4444; text-decoration: none;">
@@ -63,23 +75,36 @@
 
         <form method="POST" id="exerciseForm">
             {{ form.hidden_tag() }}
+            
             <div style="margin-bottom: 15px;">
                 <label>Nombre</label>
                 {{ form.name(class="form-control", id="inputName", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;") }}
             </div>
-            <div style="margin-bottom: 25px;">
+            
+            <div style="margin-bottom: 15px;">
                 <label>Músculo</label>
                 {{ form.muscle_group(class="form-control", id="inputMuscle", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;") }}
             </div>
+            
             <div style="margin-bottom: 15px;">
-    <label>Descripción / Técnica</label>
-    {{ form.description(class="form-control", id="inputDesc", rows="3", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit;") }}
-</div>
+                <label>Descripción / Técnica</label>
+                {{ form.description(class="form-control", id="inputDesc", rows="3", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit;") }}
+            </div>
 
-<div style="margin-bottom: 25px;">
-    <label>Link Youtube</label>
-    {{ form.video_link(class="form-control", id="inputLink", placeholder="https://youtube.com/...", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;") }}
-</div>
+            <div style="margin-bottom: 15px;">
+                <label>Quema Estimada</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    {{ form.burn_rate(class="form-control", id="inputBurn", placeholder="0.0", style="width: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 8px;") }}
+                    <span style="font-size: 0.75rem; color: #64748B; line-height: 1.2;">
+                        Kcal/min (Cardio)<br>Kcal/rep (Pesas)
+                    </span>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <label>Link Youtube</label>
+                {{ form.video_link(class="form-control", id="inputLink", placeholder="https://youtube.com/...", style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;") }}
+            </div>
             
             <button type="submit" class="action-key dark">Guardar</button>
         </form>
@@ -87,28 +112,37 @@
 </div>
 
 <style>
-    /* ... (Mismo CSS de modal que tenías) ... */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
     .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 400px; }
+    label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 5px; color: #334155; }
 </style>
 
 <script>
    function openNewModal() {
         document.getElementById('modalTitle').innerText = 'Nuevo Ejercicio';
         document.getElementById('exerciseForm').action = "{{ url_for('gym_exercises') }}";
+        
+        // Limpiar campos
         document.getElementById('inputName').value = '';
-        document.getElementById('inputDesc').value = ''; // Limpiar
-        document.getElementById('inputLink').value = ''; // Limpiar
+        document.getElementById('inputDesc').value = ''; 
+        document.getElementById('inputLink').value = ''; 
+        document.getElementById('inputBurn').value = ''; // Limpiar burn rate
+        
         document.getElementById('exerciseModal').style.display = 'flex';
     }
 
-    function openEditModal(id, name, muscle, desc, link) {
+    // Actualizado para recibir 'burn'
+    function openEditModal(id, name, muscle, desc, link, burn) {
         document.getElementById('modalTitle').innerText = 'Editar Ejercicio';
         document.getElementById('exerciseForm').action = "/gym/exercises/edit/" + id;
+        
+        // Rellenar campos
         document.getElementById('inputName').value = name;
         document.getElementById('inputMuscle').value = muscle;
-        document.getElementById('inputDesc').value = desc; // Cargar
-        document.getElementById('inputLink').value = link; // Cargar
+        document.getElementById('inputDesc').value = desc;
+        document.getElementById('inputLink').value = link;
+        document.getElementById('inputBurn').value = burn; // Rellenar burn rate
+        
         document.getElementById('exerciseModal').style.display = 'flex';
     }
 

@@ -12,12 +12,29 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
+    is_admin = db.Column(db.Boolean, default=False)
     
+    # Datos Físicos
+    age = db.Column(db.Integer, nullable=True)
+    height = db.Column(db.Float, nullable=True) 
+    weight = db.Column(db.Float, nullable=True) 
+    gender = db.Column(db.String(10), nullable=True)
+    target_weight = db.Column(db.Float, nullable=True) 
+    basal_metabolism = db.Column(db.Float, nullable=True)
+
+    # RELACIONES EXISTENTES
     recetas = db.relationship('Receta', backref='user', lazy=True)
     menus = db.relationship('MenuSemanal', backref='user', lazy=True)
     tareas = db.relationship('TareaLimpieza', backref='user', lazy=True)
     lavadoras = db.relationship('Lavadora', backref='user', lazy=True)
     items_compra = db.relationship('ShoppingItem', backref='user', lazy=True)
+    measurements = db.relationship('BodyMeasurement', backref='user', lazy=True)
+    
+    # --- NUEVAS RELACIONES (Solucionan tu error) ---
+    # Esto permite usar r.user.username en rutinas y ex.user.username en ejercicios
+    exercises = db.relationship('Exercise', backref='user', lazy=True)
+    routines = db.relationship('Routine', backref='user', lazy=True)
+    # -----------------------------------------------
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -25,7 +42,17 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-# --- INGREDIENTES (Modelo Correcto: Ingredient) ---
+    def calculate_bmr(self):
+        if self.weight and self.height and self.age and self.gender:
+            base = (10 * self.weight) + (6.25 * self.height) - (5 * self.age)
+            if self.gender == 'Male':
+                self.basal_metabolism = base + 5
+            else:
+                self.basal_metabolism = base - 161
+        else:
+            self.basal_metabolism = 0
+
+# --- INGREDIENTES ---
 class Ingredient(db.Model):
     __tablename__ = 'ingredient'
     id = db.Column(db.Integer, primary_key=True)
@@ -33,7 +60,6 @@ class Ingredient(db.Model):
     kcal_100g = db.Column(db.Float, nullable=False)
     price_kg = db.Column(db.Float, nullable=False)
     
-    # Relación inversa
     recipes_assoc = db.relationship("RecipeIngredient", back_populates="ingredient", cascade="all, delete-orphan")
 
 class RecipeIngredient(db.Model):
@@ -49,21 +75,17 @@ class RecipeIngredient(db.Model):
 class Receta(db.Model):
     __tablename__ = 'recipe'
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False) # Usamos 'title' para estandarizar
+    title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     steps = db.Column(db.Text)
-    # Estos campos son caché (opcionales si calculas dinámicamente)
     kcal = db.Column(db.Float, default=0)
     precio = db.Column(db.Float, default=0.0)
     
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    
-    # Relación con ingredientes (Tabla intermedia)
     ingredients_assoc = db.relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
 
     @property
     def total_stats(self):
-        """Calcula totales dinámicamente basándose en los ingredientes"""
         try:
             k = sum([(i.quantity_g / 100) * i.ingredient.kcal_100g for i in self.ingredients_assoc])
             p = sum([(i.quantity_g / 1000) * i.ingredient.price_kg for i in self.ingredients_assoc])
@@ -75,18 +97,14 @@ class Receta(db.Model):
 class MenuSemanal(db.Model):
     __tablename__ = 'menu_semanal'
     id = db.Column(db.Integer, primary_key=True)
-    dia = db.Column(db.String(20)) # "Lunes", "Martes"...
-    week_start = db.Column(db.Date, nullable=True) # <--- NUEVO CAMPO
+    dia = db.Column(db.String(20))
+    week_start = db.Column(db.Date, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     selecciones = db.relationship('MenuSelection', backref='menu_dia', lazy='dynamic', cascade="all, delete-orphan")
 
     def get_selections(self, tipo):
-        """Devuelve todas las selecciones (recetas o ingredientes) de un tipo de comida"""
-        # --- FIX: Si es un objeto dummy (sin ID), no consultamos la BD ---
-        if self.id is None:
-            return []
-        # -----------------------------------------------------------------
+        if self.id is None: return []
         return self.selecciones.filter_by(tipo_comida=tipo).all()
 
     @property
@@ -94,36 +112,25 @@ class MenuSemanal(db.Model):
         total_k = 0
         total_p = 0
         for s in self.selecciones:
-            # Caso 1: Es una Receta
             if s.receta:
                 stats = s.receta.total_stats
                 total_k += stats['kcal']
                 total_p += stats['price']
-            
-            # Caso 2: Es un Ingrediente suelto
             elif s.ingredient:
-                # Kcal: (gramos / 100) * kcal_100g
                 total_k += (s.quantity / 100) * s.ingredient.kcal_100g
-                # Precio: (gramos / 1000) * price_kg
                 total_p += (s.quantity / 1000) * s.ingredient.price_kg
-                
         return {'kcal': round(total_k), 'price': round(total_p, 2)}
 
-# Actualiza MenuSelection
 class MenuSelection(db.Model):
     __tablename__ = 'menu_selection'
     id = db.Column(db.Integer, primary_key=True)
     menu_id = db.Column(db.Integer, db.ForeignKey('menu_semanal.id'), nullable=False)
     tipo_comida = db.Column(db.String(20))
-    
-    # Puede ser receta...
     receta_id = db.Column(db.Integer, db.ForeignKey('recipe.id'), nullable=True)
     receta = db.relationship('Receta')
-    
-    # ... O puede ser ingrediente suelto
     ingredient_id = db.Column(db.Integer, db.ForeignKey('ingredient.id'), nullable=True)
     ingredient = db.relationship('Ingredient')
-    quantity = db.Column(db.Float, default=0.0) # Cantidad en gramos para el ingrediente suelto
+    quantity = db.Column(db.Float, default=0.0)
 
 # --- OTROS ---
 class TareaLimpieza(db.Model):
@@ -153,6 +160,8 @@ class ShoppingItem(db.Model):
     completed = db.Column(db.Boolean, default=False)
     is_auto = db.Column(db.Boolean, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+# --- GYM ---
 class Exercise(db.Model):
     __tablename__ = 'exercise'
     id = db.Column(db.Integer, primary_key=True)
@@ -162,6 +171,11 @@ class Exercise(db.Model):
     sets = db.relationship('WorkoutSet', backref='exercise', lazy=True)
     description = db.Column(db.Text, nullable=True)
     video_link = db.Column(db.String(255), nullable=True)
+    
+    # --- NUEVO CAMPO ---
+    # Para Cardio: Kcal/minuto | Para Fuerza: Kcal/repetición
+    burn_rate = db.Column(db.Float, default=0.0) 
+    # -------------------
 
     @property
     def is_cardio(self):
@@ -173,33 +187,39 @@ class WorkoutSession(db.Model):
     date = db.Column(db.DateTime, default=datetime.utcnow)
     note = db.Column(db.String(200))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    
-    # --- NUEVO CAMPO PARA FOTO ---
     photo_filename = db.Column(db.String(255), nullable=True)
-
     sets = db.relationship('WorkoutSet', backref='session', cascade="all, delete-orphan", lazy=True)
 
     @property
     def summary(self):
-        """Devuelve un resumen de ejercicios tocados en esta sesión"""
         exercises = set([s.exercise.name for s in self.sets])
         return ", ".join(exercises)
+    @property
+    def total_calories(self):
+        total = 0
+        for s in self.sets:
+            total += s.est_calories
+        return round(total)
 
 class WorkoutSet(db.Model):
     __tablename__ = 'workout_set'
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.Integer, db.ForeignKey('workout_session.id'), nullable=False)
     exercise_id = db.Column(db.Integer, db.ForeignKey('exercise.id'), nullable=False)
-    
-    # Fuerza
     weight = db.Column(db.Float, default=0)
     reps = db.Column(db.Integer, default=0)
-    
-    # Cardio (NUEVOS)
-    distance = db.Column(db.Float, default=0.0) # km
-    time = db.Column(db.Integer, default=0)     # minutos
-    
+    distance = db.Column(db.Float, default=0.0)
+    time = db.Column(db.Integer, default=0)
     order = db.Column(db.Integer, default=1)
+    @property
+    def est_calories(self):
+        rate = self.exercise.burn_rate or 0
+        if self.exercise.is_cardio:
+            # Cardio: Tasa * Minutos
+            return rate * (self.time or 0)
+        else:
+            # Fuerza: Tasa * Repeticiones
+            return rate * (self.reps or 0)
 
 class Routine(db.Model):
     __tablename__ = 'routine'
@@ -215,28 +235,21 @@ class RoutineExercise(db.Model):
     routine_id = db.Column(db.Integer, db.ForeignKey('routine.id'), nullable=False)
     exercise_id = db.Column(db.Integer, db.ForeignKey('exercise.id'), nullable=False)
     order = db.Column(db.Integer, default=1)
-    
-    # Objetivos Fuerza
     series = db.Column(db.Integer, default=3)
     rest_seconds = db.Column(db.Integer, default=90)
-    
-    # Objetivos Cardio (NUEVOS)
     target_distance = db.Column(db.Float, default=0.0)
     target_time = db.Column(db.Integer, default=0)
     
     exercise = db.relationship('Exercise')
 
-# --- MODELO DE MEDIDAS CORPORALES ---
 class BodyMeasurement(db.Model):
     __tablename__ = 'body_measurement'
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    weight = db.Column(db.Float) # Peso (kg)
-    biceps = db.Column(db.Float) # cm
-    chest = db.Column(db.Float)  # Pecho (cm)
-    hips = db.Column(db.Float)   # Cadera (cm)
-    thigh = db.Column(db.Float)  # Muslo (cm)
-    calf = db.Column(db.Float)   # Gemelo (cm)
-    
+    weight = db.Column(db.Float)
+    biceps = db.Column(db.Float)
+    chest = db.Column(db.Float)
+    hips = db.Column(db.Float)
+    thigh = db.Column(db.Float)
+    calf = db.Column(db.Float)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)

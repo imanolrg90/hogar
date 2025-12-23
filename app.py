@@ -3,6 +3,8 @@ from werkzeug.utils import secure_filename
 import re
 import json
 import datetime
+# Importa el nuevo formulario
+from forms import UserAdminForm 
 
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
@@ -197,18 +199,52 @@ def dashboard():
         BodyMeasurement.date >= today_start,
         BodyMeasurement.date < today_end
     ).first()
+# 5. CÁLCULO DE PROGRESO TOTAL (NUEVO)
+    # Buscamos el primer registro de la historia y el último
+    first_m = BodyMeasurement.query.filter_by(user_id=current_user.id).order_by(BodyMeasurement.date.asc()).first()
+    last_m = BodyMeasurement.query.filter_by(user_id=current_user.id).order_by(BodyMeasurement.date.desc()).first()
+    
+    progress_list = []
+    
+    # Solo calculamos si hay al menos un registro y si el primero no es el mismo que el último
+    # (o si es el mismo, no hay progreso que mostrar aún)
+    if first_m and last_m:
+        metrics = [
+            ('weight', 'Peso', 'kg'),
+            ('chest', 'Pecho', 'cm'),
+            ('biceps', 'Bíceps', 'cm'),
+            ('hips', 'Cadera', 'cm'),
+            ('thigh', 'Muslo', 'cm'),
+            ('calf', 'Gemelo', 'cm')
+        ]
+        
+        for field, label, unit in metrics:
+            val_start = getattr(first_m, field)
+            val_end = getattr(last_m, field)
+            
+            # Solo calculamos si ambos tienen valor (no son None)
+            if val_start is not None and val_end is not None:
+                diff = val_end - val_start
+                
+                # Guardamos solo si hay diferencia (o si quieres ver los 0.0, quita el if)
+                if abs(diff) > 0:
+                    progress_list.append({
+                        'label': label,
+                        'diff': round(diff, 2),
+                        'unit': unit
+                    })
 
-    # (Mantenemos estadísticas generales por si quieres usarlas, pero quitamos tareas y listas de la query para optimizar)
     return render_template('dashboard.html', 
                            menu=menu_hoy, 
                            workout=workout_hoy,
-                           peso=peso_hoy)
+                           peso=peso_hoy,
+                           progress=progress_list) # <--- AÑADIR ESTO AL FINAL
 
 @app.route('/recetas')
 @login_required
 def recetas_page():
     # Mostrar recetas solo del usuario, ordenadas por la más reciente
-    recetas = Receta.query.filter_by(user_id=current_user.id).order_by(Receta.id.desc()).all()
+    recetas = Receta.query.order_by(Receta.id.desc()).all()
     return render_template('food/recetas.html', recetas=recetas)    
 
 
@@ -399,7 +435,7 @@ def menu_semanal_page(week_str=None):
 
     # Generar lista de compra y cargar catálogos
     lista_compra = generar_lista_compra_db(menu)
-    recetas = Receta.query.filter_by(user_id=current_user.id).order_by(Receta.title).all()
+    recetas = Receta.query.order_by(Receta.title).all()
     all_ingredients = Ingredient.query.order_by(Ingredient.name).all()
 
     # Navegación
@@ -610,10 +646,10 @@ def gym_dashboard():
     recent_sessions = WorkoutSession.query.filter_by(user_id=current_user.id).order_by(WorkoutSession.date.desc()).limit(5).all()
     
     # 2. Ejercicios (para el contador del catálogo)
-    exercises = Exercise.query.filter_by(user_id=current_user.id).all()
+    exercises = Exercise.query.all()
 
     # 3. RUTINAS (¡NUEVO! Añadimos esto)
-    routines = Routine.query.filter_by(user_id=current_user.id).all()
+    routines = Routine.query.all()
     
     # Pasamos 'routines' a la plantilla
     return render_template('gym/gymdashboard.html', sessions=recent_sessions, exercises=exercises, routines=routines)
@@ -630,6 +666,7 @@ def gym_exercises():
             # --- NUEVOS CAMPOS ---
             description=form.description.data,
             video_link=form.video_link.data,
+            burn_rate=form.burn_rate.data,
             # ---------------------
             user_id=current_user.id
         )
@@ -638,20 +675,20 @@ def gym_exercises():
         flash('Ejercicio añadido al catálogo.', 'success')
         return redirect(url_for('gym_exercises'))
     
-    exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.muscle_group, Exercise.name).all()
+    exercises = Exercise.query.order_by(Exercise.muscle_group, Exercise.name).all()
     return render_template('gym/exercises.html', form=form, exercises=exercises)
 @app.route('/gym/log', methods=['GET', 'POST'])
 @login_required
 def gym_log():
-    exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.name).all()
-    routines = Routine.query.filter_by(user_id=current_user.id).all()
+    exercises = Exercise.query.order_by(Exercise.name).all()
+    routines = Routine.query.all()
     
     preloaded_sets = []
     routine_id = request.args.get('routine_id')
     
     if routine_id:
         routine = Routine.query.get(routine_id)
-        if routine and routine.user_id == current_user.id:
+        if routine:
             for ex_assoc in routine.exercises:
                 # Determinamos tipo
                 is_cardio = (ex_assoc.exercise.muscle_group == 'Cardio')
@@ -852,7 +889,7 @@ def gym_progress(exercise_id):
 @app.route('/gym/routines')
 @login_required
 def gym_routines():
-    routines = Routine.query.filter_by(user_id=current_user.id).all()
+    routines = Routine.query.all()
     return render_template('gym/routines_list.html', routines=routines)
 
 
@@ -860,7 +897,7 @@ def gym_routines():
 @login_required
 def create_routine():
     form = RoutineForm()
-    all_exercises = Exercise.query.filter_by(user_id=current_user.id).order_by(Exercise.name).all()
+    all_exercises = Exercise.query.order_by(Exercise.name).all()
     
     if request.method == 'POST':
         new_routine = Routine(
@@ -901,55 +938,90 @@ def create_routine():
 def gym_measurements():
     form = BodyMeasurementForm()
     
-    # --- GUARDAR DATOS (POST) ---
+    # --- LOGICA DE GUARDADO (POST) ---
     if form.validate_on_submit():
-        # Verificamos que al menos haya un dato
-        if any([form.weight.data, form.biceps.data, form.chest.data, 
-                form.hips.data, form.thigh.data, form.calf.data]):
-            
-            new_entry = BodyMeasurement(
-                user_id=current_user.id,
-                date=datetime.now(),
-                weight=form.weight.data,
-                biceps=form.biceps.data,
-                chest=form.chest.data,
-                hips=form.hips.data,
-                thigh=form.thigh.data,
-                calf=form.calf.data
-            )
-            db.session.add(new_entry)
-            db.session.commit()
-            flash('Medidas registradas correctamente.', 'success')
-            return redirect(url_for('gym_measurements'))
-        else:
-            flash('Introduce al menos un valor.', 'warning')
+        # 1. Recuperar la última medición existente para rellenar huecos
+        last_measurement = BodyMeasurement.query.filter_by(user_id=current_user.id)\
+                                                .order_by(BodyMeasurement.date.desc())\
+                                                .first()
 
-    # --- PREPARAR DATOS PARA LA GRÁFICA (GET) ---
-    # Obtenemos historial ordenado por fecha
+        # Lista de campos que queremos revisar
+        campos = ['weight', 'biceps', 'chest', 'hips', 'thigh', 'calf']
+        datos_para_guardar = {}
+        
+        algun_dato_nuevo = False
+
+        for campo in campos:
+            # Valor que viene del formulario
+            valor_form = getattr(form, campo).data
+            
+            # Si el usuario escribió algo (y no es None)
+            if valor_form is not None:
+                datos_para_guardar[campo] = valor_form
+                algun_dato_nuevo = True
+            else:
+                # Si el campo está vacío, intentamos coger el valor anterior
+                if last_measurement:
+                    valor_anterior = getattr(last_measurement, campo)
+                    datos_para_guardar[campo] = valor_anterior
+                else:
+                    # Si no hay historial ni dato nuevo, se queda en None
+                    datos_para_guardar[campo] = None
+
+        # Verificamos si realmente vamos a guardar algo útil
+        # (al menos un dato nuevo o heredado, para no crear registros vacíos)
+        if any(datos_para_guardar.values()) and algun_dato_nuevo:
+            try:
+                new_entry = BodyMeasurement(
+                    user_id=current_user.id,
+                    date=datetime.now(),
+                    weight=datos_para_guardar['weight'],
+                    biceps=datos_para_guardar['biceps'],
+                    chest=datos_para_guardar['chest'],
+                    hips=datos_para_guardar['hips'],
+                    thigh=datos_para_guardar['thigh'],
+                    calf=datos_para_guardar['calf']
+                )
+                db.session.add(new_entry)
+                db.session.commit()
+                flash('Medidas actualizadas (valores vacíos heredados del anterior).', 'success')
+                return redirect(url_for('gym_measurements'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error al guardar en BD: {e}', 'error')
+        else:
+            flash('Introduce al menos un valor nuevo.', 'warning')
+
+    # --- DEPURACIÓN DE ERRORES DE FORMULARIO ---
+    elif request.method == 'POST':
+        # Esto te dirá exactamente por qué falla si pones decimales y no lo acepta
+        flash(f'Error de validación: {form.errors}', 'error')
+        print(f"Errores del formulario: {form.errors}")
+
+    # --- PREPARAR DATOS PARA LA GRÁFICA Y TABLA (GET) ---
+    # Obtenemos historial ordenado por fecha (ASC para la gráfica)
     history = BodyMeasurement.query.filter_by(user_id=current_user.id).order_by(BodyMeasurement.date.asc()).all()
     
-    # Creamos un diccionario con listas para Chart.js
-    # Chart.js ignora los 'null', así que si un día no te mediste algo, el gráfico saltará ese punto
+    # FUNCION AUXILIAR: Convierte 0 o None en None para que Chart.js lo ignore
+    def clean_val(val):
+        return val if (val and val > 0) else None
+
+    # Creamos el diccionario aplicando la limpieza
     chart_data = {
         'labels': [m.date.strftime('%d/%m/%Y') for m in history],
-        'weight': [m.weight for m in history],
-        'biceps': [m.biceps for m in history],
-        'chest':  [m.chest for m in history],
-        'hips':   [m.hips for m in history],
-        'thigh':  [m.thigh for m in history],
-        'calf':   [m.calf for m in history]
+        'weight': [clean_val(m.weight) for m in history],
+        'biceps': [clean_val(m.biceps) for m in history],
+        'chest':  [clean_val(m.chest) for m in history],
+        'hips':   [clean_val(m.hips) for m in history],
+        'thigh':  [clean_val(m.thigh) for m in history],
+        'calf':   [clean_val(m.calf) for m in history]
     }
 
-    # Invertimos historial para la tabla (lo más nuevo primero)
+    # Invertimos historial para la tabla visual (lo más nuevo arriba)
     return render_template('gym/measurements.html', 
                            form=form, 
                            history=reversed(history),
-                           chart_data=json.dumps(chart_data)) # Pasamos JSON al template
-
-
-
-
-
+                           chart_data=json.dumps(chart_data))
 # --- GESTIÓN DE EJERCICIOS (EDITAR / BORRAR) ---
 
 @app.route('/gym/exercises/delete/<int:id>')
@@ -986,6 +1058,11 @@ def edit_exercise(id):
     # --- NUEVOS CAMPOS ---
     ex.description = request.form.get('description')
     ex.video_link = request.form.get('video_link')
+    try:
+        rate = request.form.get('burn_rate')
+        ex.burn_rate = float(rate) if rate else 0.0
+    except:
+        ex.burn_rate = 0.0
     # ---------------------
 
     db.session.commit()
@@ -1157,6 +1234,158 @@ def update_db_schema(app):
                             conn.commit()
                     except Exception as e:
                         print(f"Error: {e}")
+
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    # Seguridad: Si no es admin, fuera
+    if not current_user.is_admin:
+        flash('Acceso denegado. Se requieren permisos de administrador.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    users = User.query.all()
+    return render_template('admin/users.html', users=users)
+
+# 2. ELIMINAR USUARIO
+@app.route('/admin/users/delete/<int:id>')
+@login_required
+def delete_user(id):
+    if not current_user.is_admin:
+        return redirect(url_for('dashboard'))
+    
+    if id == current_user.id:
+        flash('No puedes eliminar tu propia cuenta desde aquí.', 'warning')
+        return redirect(url_for('admin_users'))
+
+    user = User.query.get_or_404(id)
+    try:
+        # Al borrar el usuario, SQL Alchemy borrará sus recetas, entrenos, etc
+        # gracias a los cascade o foreign keys.
+        db.session.delete(user)
+        db.session.commit()
+        flash(f'Usuario {user.username} eliminado.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar: {e}', 'error')
+        
+    return redirect(url_for('admin_users'))
+
+# 3. CAMBIAR ROL (Hacer Admin o quitar Admin)
+@app.route('/admin/users/toggle_role/<int:id>')
+@login_required
+def toggle_admin_role(id):
+    if not current_user.is_admin:
+        return redirect(url_for('dashboard'))
+        
+    if id == current_user.id:
+        flash('No puedes quitarte el rol de admin a ti mismo.', 'warning')
+        return redirect(url_for('admin_users'))
+
+    user = User.query.get_or_404(id)
+    user.is_admin = not user.is_admin # Invertir valor
+    db.session.commit()
+    
+    estado = "Administrador" if user.is_admin else "Usuario normal"
+    flash(f'Rol actualizado. {user.username} ahora es {estado}.', 'success')
+    return redirect(url_for('admin_users'))
+
+# --- RUTA SECRETA PARA CREAR EL PRIMER ADMIN ---
+# (Úsala una vez y luego borra este bloque o coméntalo)
+@app.route('/setup/make_me_admin')
+@login_required
+def make_me_admin():
+    current_user.is_admin = True
+    db.session.commit()
+    flash('¡Ahora eres Administrador!', 'success')
+    return redirect(url_for('dashboard'))
+
+
+# En app.py
+
+
+
+# --- RUTA CREAR USUARIO (ADMIN) ---
+@app.route('/admin/users/create', methods=['GET', 'POST'])
+@login_required
+def create_user_admin():
+    if not current_user.is_admin:
+        return redirect(url_for('dashboard'))
+    
+    form = UserAdminForm()
+    if form.validate_on_submit():
+        # Verificar duplicados
+        if User.query.filter_by(username=form.username.data).first():
+            flash('El nombre de usuario ya existe.', 'warning')
+            return render_template('admin/edit_user.html', form=form, title="Crear Usuario")
+
+        user = User()
+        user.username = form.username.data
+        user.email = form.email.data
+        user.is_admin = form.is_admin.data
+        
+        # Datos físicos
+        user.age = form.age.data
+        user.height = form.height.data
+        user.weight = form.weight.data
+        user.gender = form.gender.data
+        user.target_weight = form.target_weight.data
+        
+        # Contraseña obligatoria al crear
+        if form.password.data:
+            user.set_password(form.password.data)
+        else:
+            flash('La contraseña es obligatoria para nuevos usuarios.', 'error')
+            return render_template('admin/edit_user.html', form=form, title="Crear Usuario")
+
+        # Calcular Metabolismo
+        user.calculate_bmr()
+        
+        db.session.add(user)
+        db.session.commit()
+        flash('Usuario creado correctamente.', 'success')
+        return redirect(url_for('admin_users'))
+        
+    return render_template('admin/edit_user.html', form=form, title="Crear Usuario")
+
+# --- RUTA EDITAR USUARIO (ADMIN) ---
+@app.route('/admin/users/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_user_admin(id):
+    if not current_user.is_admin:
+        return redirect(url_for('dashboard'))
+        
+    user = User.query.get_or_404(id)
+    form = UserAdminForm(obj=user) # Carga datos existentes
+    
+    if form.validate_on_submit():
+        user.username = form.username.data
+        user.email = form.email.data
+        user.is_admin = form.is_admin.data
+        
+        # Datos físicos
+        user.age = form.age.data
+        user.height = form.height.data
+        user.weight = form.weight.data
+        user.gender = form.gender.data
+        user.target_weight = form.target_weight.data
+        
+        # Solo cambiamos contraseña si escribieron algo
+        if form.password.data:
+            user.set_password(form.password.data)
+            
+        # Recalcular Metabolismo
+        user.calculate_bmr()
+        
+        try:
+            db.session.commit()
+            flash('Usuario actualizado.', 'success')
+            return redirect(url_for('admin_users'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al guardar: {e}', 'error')
+            
+    return render_template('admin/edit_user.html', form=form, title="Editar Usuario", user_bmr=user.basal_metabolism)
 
 # --- EJECUCIÓN ---
 if __name__ == '__main__':

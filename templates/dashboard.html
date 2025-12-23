@@ -94,25 +94,75 @@
         </div>
     </div>
 
-    <div class="bento-card" style="{% if peso %}background: #D1FAE5; border: 1px solid #10B981;{% else %}background: white; border: 1px solid #E5E7EB;{% endif %}">
-        <div class="widget-title" style="{% if peso %}color: #047857;{% else %}color: var(--text-muted);{% endif %}">
-            <i class="fas fa-weight"></i> Peso Corporal
+   <div class="bento-card" 
+         style="{% if balance >= 0 %}background: #ECFDF5; border: 1px solid #10B981; color: #064E3B;{% else %}background: #FEF2F2; border: 1px solid #EF4444; color: #7F1D1D;{% endif %}">
+        
+        <div class="widget-title" style="display: flex; justify-content: space-between; align-items: center; color: inherit;">
+            <span><i class="fas fa-wallet"></i> Balance Diario</span>
+            
+            {% if peso %}
+            <span style="font-size: 0.8rem; background: rgba(255,255,255,0.5); padding: 4px 8px; border-radius: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                {% if weight_diff is not none %}
+                    {% if weight_diff < 0 %}
+                        <i class="fas fa-arrow-down"></i> {{ weight_diff|abs|round(1) }} kg
+                    {% elif weight_diff > 0 %}
+                        <i class="fas fa-arrow-up"></i> {{ weight_diff|abs|round(1) }} kg
+                    {% else %}
+                        <span>=</span> 0.0 kg
+                    {% endif %}
+                
+                {% else %}
+                    {{ peso.weight }} kg
+                {% endif %}
+            </span>
+            {% endif %}
         </div>
         
-        <div style="margin-top: auto;">
-            {% if peso %}
-                <div style="font-size: 2.5rem; font-weight: 800; color: #047857;">
-                    {{ peso.weight }}<span style="font-size: 1rem; font-weight: 500;">kg</span>
+        <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+            
+            <div style="text-align: center;">
+                <div style="font-size: 2.2rem; font-weight: 800; line-height: 1;">
+                    {% if balance >= 0 %}+{% endif %}{{ balance|int }}
+                    <span style="font-size: 1rem; font-weight: 500;">kcal</span>
                 </div>
-                <div style="font-size: 0.8rem; color: #065F46; font-weight: 600;">
-                    <i class="fas fa-check-circle"></i> Registrado hoy
+                <div style="font-size: 0.8rem; opacity: 0.8; margin-top: 5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                    {% if balance >= 0 %}
+                        Déficit
+                    {% else %}
+                        Superávit
+                    {% endif %}
                 </div>
-            {% else %}
-                <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-main); margin-bottom: 10px;">
-                    ¿Te has pesado hoy?
+            </div>
+
+            {% set porcentaje = (kcal_ingesta / (kcal_basal + kcal_quemadas) * 100)|int if (kcal_basal + kcal_quemadas) > 0 else 100 %}
+            <div style="background: rgba(0,0,0,0.1); height: 8px; border-radius: 4px; overflow: hidden; margin: 5px 0;">
+                <div style="height: 100%; width: {{ [porcentaje, 100]|min }}%; background: {% if balance >= 0 %}#10B981{% else %}#EF4444{% endif %}; transition: width 0.5s;"></div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem; margin-top: 5px; background: rgba(255,255,255,0.4); padding: 10px; border-radius: 12px;">
+                
+                <div>
+                    <div style="font-size: 0.7rem; text-transform: uppercase; opacity: 0.7; font-weight: 700;">Consumido</div>
+                    <div style="font-weight: 700; font-size: 1rem; color: {% if balance < 0 %}#DC2626{% else %}inherit{% endif %};">
+                        <i class="fas fa-utensils"></i> {{ kcal_ingesta|int }}
+                    </div>
                 </div>
-                <a href="{{ url_for('gym_measurements') }}" class="btn-primary" style="padding: 8px 16px; font-size: 0.85rem;">
-                    <i class="fas fa-plus"></i> Anotar
+
+                <div style="text-align: right;">
+                    <div style="font-size: 0.7rem; text-transform: uppercase; opacity: 0.7; font-weight: 700;">Gasto Total</div>
+                    <div style="font-weight: 700; font-size: 1rem;">
+                         {{ (kcal_basal + kcal_quemadas)|int }} <i class="fas fa-fire"></i>
+                    </div>
+                    <div style="font-size: 0.65rem; opacity: 0.8;">
+                        (Basal: {{ kcal_basal|int }} + Gym: {{ kcal_quemadas|int }})
+                    </div>
+                </div>
+            </div>
+
+            {% if not peso %}
+                <a href="{{ url_for('gym_measurements') }}" 
+                   style="margin-top: 5px; text-align: center; text-decoration: none; font-size: 0.8rem; font-weight: 600; background: rgba(255,255,255,0.6); padding: 8px; border-radius: 8px; color: inherit;">
+                    <i class="fas fa-plus"></i> Registrar Peso
                 </a>
             {% endif %}
         </div>

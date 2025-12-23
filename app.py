@@ -175,70 +175,75 @@ def dashboard():
     dia_actual_str = dias_semana[hoy.weekday()]
     inicio_semana_actual = hoy - timedelta(days=hoy.weekday())
     
-    # Rango de tiempo para "HOY" (00:00 a 23:59)
+    # Rango de tiempo para "HOY"
     today_start = datetime(hoy.year, hoy.month, hoy.day)
     today_end = today_start + timedelta(days=1)
 
-    # 2. MENU DE HOY
+    # 2. Consultas básicas
     menu_hoy = MenuSemanal.query.filter_by(
         user_id=current_user.id, 
         dia=dia_actual_str,
         week_start=inicio_semana_actual
     ).first()
 
-    # 3. ENTRENAMIENTO DE HOY
     workout_hoy = WorkoutSession.query.filter(
         WorkoutSession.user_id == current_user.id,
         WorkoutSession.date >= today_start,
         WorkoutSession.date < today_end
     ).first()
 
-    # 4. PESO DE HOY (NUEVO)
     peso_hoy = BodyMeasurement.query.filter(
         BodyMeasurement.user_id == current_user.id,
         BodyMeasurement.date >= today_start,
         BodyMeasurement.date < today_end
     ).first()
-# 5. CÁLCULO DE PROGRESO TOTAL (NUEVO)
-    # Buscamos el primer registro de la historia y el último
+
+    # 3. CÁLCULO DEL PROGRESO (GRÁFICA HISTÓRICA)
     first_m = BodyMeasurement.query.filter_by(user_id=current_user.id).order_by(BodyMeasurement.date.asc()).first()
     last_m = BodyMeasurement.query.filter_by(user_id=current_user.id).order_by(BodyMeasurement.date.desc()).first()
     
     progress_list = []
-    
-    # Solo calculamos si hay al menos un registro y si el primero no es el mismo que el último
-    # (o si es el mismo, no hay progreso que mostrar aún)
     if first_m and last_m:
-        metrics = [
-            ('weight', 'Peso', 'kg'),
-            ('chest', 'Pecho', 'cm'),
-            ('biceps', 'Bíceps', 'cm'),
-            ('hips', 'Cadera', 'cm'),
-            ('thigh', 'Muslo', 'cm'),
-            ('calf', 'Gemelo', 'cm')
-        ]
-        
+        metrics = [('weight', 'Peso', 'kg'), ('chest', 'Pecho', 'cm'), ('biceps', 'Bíceps', 'cm'), 
+                   ('hips', 'Cadera', 'cm'), ('thigh', 'Muslo', 'cm'), ('calf', 'Gemelo', 'cm')]
         for field, label, unit in metrics:
             val_start = getattr(first_m, field)
             val_end = getattr(last_m, field)
-            
-            # Solo calculamos si ambos tienen valor (no son None)
             if val_start is not None and val_end is not None:
                 diff = val_end - val_start
-                
-                # Guardamos solo si hay diferencia (o si quieres ver los 0.0, quita el if)
                 if abs(diff) > 0:
-                    progress_list.append({
-                        'label': label,
-                        'diff': round(diff, 2),
-                        'unit': unit
-                    })
+                    progress_list.append({'label': label, 'diff': round(diff, 2), 'unit': unit})
+
+    # 4. CÁLCULO DE DIFERENCIA DIARIA DE PESO (NUEVO)
+    weight_diff = None
+    if peso_hoy:
+        # Buscamos el último registro que sea ANTERIOR a hoy
+        peso_ayer = BodyMeasurement.query.filter(
+            BodyMeasurement.user_id == current_user.id,
+            BodyMeasurement.date < today_start
+        ).order_by(BodyMeasurement.date.desc()).first()
+        
+        if peso_ayer and peso_ayer.weight:
+            weight_diff = peso_hoy.weight - peso_ayer.weight
+
+    # 5. CÁLCULO DE BALANCE CALÓRICO
+    kcal_ingesta = menu_hoy.daily_stats['kcal'] if menu_hoy else 0
+    kcal_quemadas = workout_hoy.total_calories if workout_hoy else 0
+    kcal_basal = current_user.basal_metabolism or 0
+    
+    limite_diario = kcal_basal + kcal_quemadas
+    balance = limite_diario - kcal_ingesta
 
     return render_template('dashboard.html', 
                            menu=menu_hoy, 
                            workout=workout_hoy,
                            peso=peso_hoy,
-                           progress=progress_list) # <--- AÑADIR ESTO AL FINAL
+                           progress=progress_list,
+                           kcal_ingesta=kcal_ingesta,
+                           kcal_quemadas=kcal_quemadas,
+                           kcal_basal=kcal_basal,
+                           balance=balance,
+                           weight_diff=weight_diff) # <--- Pasamos la nueva variable
 
 @app.route('/recetas')
 @login_required

@@ -21,6 +21,12 @@
                     </select>
                     <button type="button" onclick="loadRoutine()" class="action-key dark" style="width: auto; padding: 0 15px; font-size: 0.9rem;">Ir</button>
                 </div>
+                <div style="margin-top: 10px;">
+    <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px;">Fecha del Entreno</label>
+    <input type="datetime-local" name="workout_date" class="form-control" 
+           value="{{ now.strftime('%Y-%m-%dT%H:%M') }}" 
+           style="width: 100%; padding: 10px;">
+</div>
                 
                 <input type="text" name="note" class="form-control" placeholder="Notas del entreno..." style="width: 100%; padding: 10px;">
                 

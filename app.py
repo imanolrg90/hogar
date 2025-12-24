@@ -3,6 +3,7 @@ from werkzeug.utils import secure_filename
 import re
 import json
 import datetime
+from datetime import datetime, date
 # Importa el nuevo formulario
 from forms import UserAdminForm 
 
@@ -682,12 +683,15 @@ def gym_exercises():
     
     exercises = Exercise.query.order_by(Exercise.muscle_group, Exercise.name).all()
     return render_template('gym/exercises.html', form=form, exercises=exercises)
+
+
 @app.route('/gym/log', methods=['GET', 'POST'])
 @login_required
 def gym_log():
     exercises = Exercise.query.order_by(Exercise.name).all()
     routines = Routine.query.all()
     
+    # --- LOGICA DE PRECARGA DE RUTINA (EXISTENTE) ---
     preloaded_sets = []
     routine_id = request.args.get('routine_id')
     
@@ -695,68 +699,75 @@ def gym_log():
         routine = Routine.query.get(routine_id)
         if routine:
             for ex_assoc in routine.exercises:
-                # Determinamos tipo
                 is_cardio = (ex_assoc.exercise.muscle_group == 'Cardio')
                 
-                # --- BUSCAR ÚLTIMO REGISTRO (HISTORIAL) ---
+                # Buscar último registro para sugerir pesos
                 last_set = WorkoutSet.query.join(WorkoutSession).filter(
                     WorkoutSession.user_id == current_user.id,
                     WorkoutSet.exercise_id == ex_assoc.exercise_id
                 ).order_by(WorkoutSession.date.desc()).first()
                 
-                # Valores por defecto: Prioridad al historial, si no, vacío
                 def_weight = last_set.weight if last_set else ''
                 def_reps = last_set.reps if last_set else ''
-                
-                # Para cardio, si no hay historial, miramos si la rutina tenía un objetivo (target)
                 def_dist = last_set.distance if (last_set and last_set.distance > 0) else (ex_assoc.target_distance if ex_assoc.target_distance else '')
                 def_time = last_set.time if (last_set and last_set.time > 0) else (ex_assoc.target_time if ex_assoc.target_time else '')
-
-                # ------------------------------------------
 
                 preloaded_sets.append({
                     'id': str(ex_assoc.exercise_id),
                     'name': ex_assoc.exercise.name,
                     'type': 'Cardio' if is_cardio else 'Strength',
-                    
                     'series': ex_assoc.series if ex_assoc.series else 3,
-
-                    # --- NUEVO: AÑADIMOS INFO PARA EL MODAL DE VIDEO ---
                     'description': ex_assoc.exercise.description or '',
                     'videoLink': ex_assoc.exercise.video_link or '',
-                    # ---------------------------------------------------
-                    
-                    # Usamos los valores históricos aquí
                     'weight': def_weight, 
                     'reps': def_reps,
                     'distance': def_dist,
                     'time': def_time,
-                    
                     'rest': ex_assoc.rest_seconds
                 })
 
+    # --- LOGICA DE GUARDADO (POST) ---
     if request.method == 'POST':
         data_json = request.form.get('workout_data')
         note = request.form.get('note')
         
-        # Procesar FOTO
+        # 1. PROCESAR FECHA PERSONALIZADA
+        date_str = request.form.get('workout_date') # Viene del input datetime-local
+        if date_str:
+            try:
+                # Formato estándar de HTML5 datetime-local: 'YYYY-MM-DDTHH:MM'
+                final_date = datetime.strptime(date_str, '%Y-%m-%dT%H:%M')
+            except ValueError:
+                final_date = datetime.now()
+        else:
+            final_date = datetime.now()
+
+        # 2. PROCESAR FOTO
         photo_file = request.files.get('photo')
         filename = None
         if photo_file and photo_file.filename != '':
             fname = secure_filename(photo_file.filename)
             import time
+            # Añadimos timestamp al nombre para evitar duplicados
             fname = f"{int(time.time())}_{fname}"
             photo_file.save(os.path.join(app.root_path, app.config['UPLOAD_FOLDER'], fname))
             filename = fname
 
         if data_json:
             try:
-                new_session = WorkoutSession(user_id=current_user.id, note=note, date=datetime.now(), photo_filename=filename)
+                # Creamos la sesión usando la fecha elegida (final_date)
+                new_session = WorkoutSession(
+                    user_id=current_user.id, 
+                    note=note, 
+                    date=final_date, 
+                    photo_filename=filename
+                )
                 db.session.add(new_session)
-                db.session.flush()
+                db.session.flush() # Genera el ID
                 
                 sets_data = json.loads(data_json)
                 
+                # Guardar los Sets
                 for index, s in enumerate(sets_data):
                     try:
                         num_series = int(s.get('series', 1))
@@ -787,10 +798,13 @@ def gym_log():
                 print(f"Error: {e}")
                 flash('Error al guardar.', 'danger')
 
+    # Pasamos 'now' para que el input HTML tenga un valor por defecto
     return render_template('gym/log_workout.html', 
                            exercises=exercises, 
                            routines=routines, 
-                           preloaded_json=json.dumps(preloaded_sets))
+                           preloaded_json=json.dumps(preloaded_sets),
+                           now=datetime.now())
+
 
 @app.route('/gym/history')
 @login_required
@@ -938,48 +952,61 @@ def create_routine():
 
     return render_template('gym/create_routine.html', form=form, exercises=all_exercises)
 
+
 @app.route('/gym/measurements', methods=['GET', 'POST'])
 @login_required
 def gym_measurements():
     form = BodyMeasurementForm()
     
+    # Cadena de fecha para el valor por defecto del input HTML (YYYY-MM-DD)
+    today_str = date.today().strftime('%Y-%m-%d') 
+    
     # --- LOGICA DE GUARDADO (POST) ---
     if form.validate_on_submit():
-        # 1. Recuperar la última medición existente para rellenar huecos
-        last_measurement = BodyMeasurement.query.filter_by(user_id=current_user.id)\
-                                                .order_by(BodyMeasurement.date.desc())\
-                                                .first()
+        
+        # 1. Determinar la fecha elegida
+        if form.date.data:
+            chosen_date_obj = form.date.data
+            # Convertir date a datetime (poniendo hora 00:00) para compatibilidad DB
+            if isinstance(chosen_date_obj, date) and not isinstance(chosen_date_obj, datetime):
+                save_date = datetime.combine(chosen_date_obj, datetime.min.time())
+            else:
+                save_date = chosen_date_obj
+        else:
+            save_date = datetime.now()
 
-        # Lista de campos que queremos revisar
+        # 2. Recuperar la medición ANTERIOR a la fecha elegida (para rellenar huecos)
+        # Esto es vital: si registras algo de hace 1 semana, quieres heredar los datos
+        # de hace 2 semanas, no los de ayer.
+        last_measurement = BodyMeasurement.query.filter(
+            BodyMeasurement.user_id == current_user.id,
+            BodyMeasurement.date < save_date
+        ).order_by(BodyMeasurement.date.desc()).first()
+
         campos = ['weight', 'biceps', 'chest', 'hips', 'thigh', 'calf']
         datos_para_guardar = {}
-        
         algun_dato_nuevo = False
 
         for campo in campos:
-            # Valor que viene del formulario
             valor_form = getattr(form, campo).data
             
-            # Si el usuario escribió algo (y no es None)
             if valor_form is not None:
+                # Si el usuario escribió algo, lo usamos
                 datos_para_guardar[campo] = valor_form
                 algun_dato_nuevo = True
             else:
-                # Si el campo está vacío, intentamos coger el valor anterior
+                # Si está vacío, intentamos heredar del registro anterior
                 if last_measurement:
-                    valor_anterior = getattr(last_measurement, campo)
-                    datos_para_guardar[campo] = valor_anterior
+                    datos_para_guardar[campo] = getattr(last_measurement, campo)
                 else:
-                    # Si no hay historial ni dato nuevo, se queda en None
                     datos_para_guardar[campo] = None
 
-        # Verificamos si realmente vamos a guardar algo útil
-        # (al menos un dato nuevo o heredado, para no crear registros vacíos)
+        # Guardamos solo si hay datos
         if any(datos_para_guardar.values()) and algun_dato_nuevo:
             try:
                 new_entry = BodyMeasurement(
                     user_id=current_user.id,
-                    date=datetime.now(),
+                    date=save_date, # Usamos la fecha calculada arriba
                     weight=datos_para_guardar['weight'],
                     biceps=datos_para_guardar['biceps'],
                     chest=datos_para_guardar['chest'],
@@ -989,7 +1016,7 @@ def gym_measurements():
                 )
                 db.session.add(new_entry)
                 db.session.commit()
-                flash('Medidas actualizadas (valores vacíos heredados del anterior).', 'success')
+                flash('Medidas registradas correctamente.', 'success')
                 return redirect(url_for('gym_measurements'))
             except Exception as e:
                 db.session.rollback()
@@ -997,21 +1024,16 @@ def gym_measurements():
         else:
             flash('Introduce al menos un valor nuevo.', 'warning')
 
-    # --- DEPURACIÓN DE ERRORES DE FORMULARIO ---
     elif request.method == 'POST':
-        # Esto te dirá exactamente por qué falla si pones decimales y no lo acepta
         flash(f'Error de validación: {form.errors}', 'error')
-        print(f"Errores del formulario: {form.errors}")
 
     # --- PREPARAR DATOS PARA LA GRÁFICA Y TABLA (GET) ---
-    # Obtenemos historial ordenado por fecha (ASC para la gráfica)
     history = BodyMeasurement.query.filter_by(user_id=current_user.id).order_by(BodyMeasurement.date.asc()).all()
     
-    # FUNCION AUXILIAR: Convierte 0 o None en None para que Chart.js lo ignore
+    # Helpers para limpiar nulos en la gráfica
     def clean_val(val):
         return val if (val and val > 0) else None
 
-    # Creamos el diccionario aplicando la limpieza
     chart_data = {
         'labels': [m.date.strftime('%d/%m/%Y') for m in history],
         'weight': [clean_val(m.weight) for m in history],
@@ -1022,11 +1044,12 @@ def gym_measurements():
         'calf':   [clean_val(m.calf) for m in history]
     }
 
-    # Invertimos historial para la tabla visual (lo más nuevo arriba)
     return render_template('gym/measurements.html', 
                            form=form, 
                            history=reversed(history),
-                           chart_data=json.dumps(chart_data))
+                           chart_data=json.dumps(chart_data),
+                           today_date=today_str) # Pasamos la fecha por defecto
+
 # --- GESTIÓN DE EJERCICIOS (EDITAR / BORRAR) ---
 
 @app.route('/gym/exercises/delete/<int:id>')

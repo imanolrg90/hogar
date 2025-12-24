@@ -5,6 +5,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, BooleanField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
 from wtforms import IntegerField, SelectField
+from wtforms import DateField
 
 class IngredienteForm(FlaskForm):
     nombre = StringField('Nombre del Ingrediente', validators=[DataRequired()])
@@ -58,6 +59,7 @@ class RoutineForm(FlaskForm):
 
 class BodyMeasurementForm(FlaskForm):
     # Añadimos Optional() en todos los campos para que WTForms ignore los vacíos
+    date = DateField('Fecha', format='%Y-%m-%d', validators=[Optional()])
     weight = FloatField('Peso (kg)', validators=[Optional(), NumberRange(min=0)])
     biceps = FloatField('Bíceps (cm)', validators=[Optional(), NumberRange(min=0)])
     chest = FloatField('Pecho (cm)', validators=[Optional(), NumberRange(min=0)])
